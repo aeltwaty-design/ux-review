@@ -6,7 +6,7 @@ export function TopBar({ user, profile, onNew, onSignOut }: { user: User | null;
   const avatar = profile?.avatar_url || user?.user_metadata?.avatar_url || '';
   return (
     <header className="top"><div className="top-in">
-      <div className="brand"><span className="eyebrow">WalaPlus · engineering ↔ UX</span><h1>UX Reviews</h1></div>
+      <div className="brand"><span className="eyebrow">Engineering ↔ UX · all apps</span><h1>UX Reviews</h1></div>
       <nav>
         {user && <a className="btn" href="#queue">Queue</a>}
         {user && <button className="btn primary" type="button" onClick={onNew}>Request a review</button>}

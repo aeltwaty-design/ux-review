@@ -55,7 +55,7 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
       <a className="back" href="#queue">← Queue</a>
       <div className="rhead">
         <div>
-          <h2>{r.flow}<span className="chip plat">{r.platform}</span></h2>
+          <h2>{r.flow}<span className="chip plat">{board.appName(r.app_id)}</span><span className="chip plat">{r.platform}</span></h2>
           <div className="rsub"><span className={'pill st-' + r.status}>{STATUS[r.status]}</span><span>Requested by {board.nameOf(r.requested_by, r.requester_label)} on {fmtDate(r.created_at)}</span>
             {r.source === 'audit' && <span>· imported from the Android app audit</span>}</div>
         </div>

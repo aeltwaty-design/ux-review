@@ -54,6 +54,8 @@ code{font-family:var(--font-mono);font-size:.92em;background:var(--surface-2);pa
 .note-bar{background:var(--minor-soft);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:14px}
 
 .wrap{max-width:1100px;margin:0 auto;padding-block:16px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.chips.apps{margin-bottom:12px}
+.chips.apps .fchip{font-weight:600}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;min-width:0}
 .tile-n{font-size:30px;font-weight:600;line-height:1.1}

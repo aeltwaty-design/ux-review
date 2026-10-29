@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { BUCKET, supabase } from '../lib/supabase';
-import type { Finding, Profile, Review, ShotRef } from '../lib/types';
+import type { AppDef, Finding, Profile, Review, ShotRef } from '../lib/types';
 import { nowIso } from '../lib/format';
 
 type Change = { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> };
@@ -20,6 +20,7 @@ export function useBoard(enabled: boolean, meId: string | null) {
   const [reviews, setReviews] = useState<Map<string, Review>>(new Map());
   const [findings, setFindings] = useState<Map<string, Finding>>(new Map());
   const [profiles, setProfiles] = useState<Map<string, Profile>>(new Map());
+  const [apps, setApps] = useState<AppDef[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const findingsRef = useRef(findings);
@@ -29,17 +30,19 @@ export function useBoard(enabled: boolean, meId: string | null) {
     if (!enabled) return;
     let cancelled = false;
     (async () => {
-      const [r, f, p] = await Promise.all([
+      const [r, f, p, a] = await Promise.all([
         supabase.from('reviews').select('*'),
         supabase.from('findings').select('*'),
         supabase.from('profiles').select('id, email, name, avatar_url'),
+        supabase.from('apps').select('*').order('sort_order'),
       ]);
       if (cancelled) return;
-      const err = r.error || f.error || p.error;
+      const err = r.error || f.error || p.error || a.error;
       if (err) { setError(err.message); setLoaded(true); return; }
       setReviews(new Map((r.data as Review[]).map((x) => [x.id, x])));
       setFindings(new Map((f.data as Finding[]).map((x) => [x.id, x])));
       setProfiles(new Map((p.data as Profile[]).map((x) => [x.id, x])));
+      setApps(a.data as AppDef[]);
       setLoaded(true);
     })();
     const ch = supabase.channel('board')
@@ -127,8 +130,10 @@ export function useBoard(enabled: boolean, meId: string | null) {
     return label || '—';
   }, [profiles, meId]);
 
-  return useMemo(() => ({ reviews, findings, profiles, loaded, error, nameOf, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot }),
-    [reviews, findings, profiles, loaded, error, nameOf, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot]);
+  const appName = useCallback((id: string | null | undefined) => apps.find((a) => a.id === id)?.name || id || '', [apps]);
+
+  return useMemo(() => ({ reviews, findings, profiles, apps, loaded, error, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot }),
+    [reviews, findings, profiles, apps, loaded, error, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot]);
 }
 export type Board = ReturnType<typeof useBoard>;
 

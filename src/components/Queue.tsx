@@ -6,7 +6,7 @@ import { StackedChart, foldRows, type Row } from './StackedChart';
 
 type Filter = 'active' | 'closed' | 'all';
 
-export function Queue({ board, missing, onNew }: { board: Board; missing: string | null; onNew: () => void }) {
+export function Queue({ board, allApps, missing, onNew }: { board: Board; allApps: boolean; missing: string | null; onNew: () => void }) {
   const [filter, setFilter] = useState<Filter>('active');
   if (!board.loaded) return <div className="empty">Loading reviews…</div>;
   const all = sortReviews([...board.reviews.values()]);
@@ -16,7 +16,7 @@ export function Queue({ board, missing, onNew }: { board: Board; missing: string
   return (
     <>
       {missing && <div className="note-bar" style={{ marginBottom: 12 }}>No review with the id <code>{missing}</code>. It may have been withdrawn.</div>}
-      {all.length > 0 && <QueueCharts board={board} />}
+      {all.length > 0 && <QueueCharts board={board} allApps={allApps} />}
       <div className="toolbar"><h2 style={{ fontSize: 18, marginRight: 6 }}>Review queue</h2><div className="chips">{chip('active', 'Active')}{chip('closed', 'Closed')}{chip('all', 'All')}</div></div>
       {all.length === 0 ? (
         <div className="empty"><h3>No review requests yet</h3>When a flow is ready for UX review, raise the first request. The UX team is alerted on Slack.<p><button type="button" className="btn primary" onClick={onNew}>Request a review</button></p></div>
@@ -30,7 +30,7 @@ export function Queue({ board, missing, onNew }: { board: Board; missing: string
               <a className="row" href={'#' + r.id} key={r.id}>
                 <span className={'pill st-' + r.status}>{STATUS[r.status]}</span>
                 <span className="row-main">
-                  <span className="row-title">{r.flow}<span className="chip plat">{r.platform}</span></span>
+                  <span className="row-title">{r.flow}<span className="chip plat">{board.appName(r.app_id)}</span><span className="chip plat">{r.platform}</span></span>
                   <span className="row-meta">Requested by {board.nameOf(r.requested_by, r.requester_label)} · {fmtDate(r.created_at)}
                     {(r.reviewer || r.reviewer_label) && <> · Reviewer: {board.nameOf(r.reviewer, r.reviewer_label)}</>}
                     {r.status === 'done' && <> · closed {fmtDate(r.closed_at)}</>}</span>
@@ -49,13 +49,15 @@ export function Queue({ board, missing, onNew }: { board: Board; missing: string
   );
 }
 
-function QueueCharts({ board }: { board: Board }) {
+function QueueCharts({ board, allApps }: { board: Board; allApps: boolean }) {
   const rs = [...board.reviews.values()];
   const active = new Set(rs.filter((r) => r.status !== 'done').map((r) => r.id));
+  // All apps: one row per app. One app selected: one row per flow group.
   const byFlow: Record<string, Record<string, number>> = {};
   for (const f of board.findings.values()) {
     if (f.state !== 'open' || !active.has(f.review_id)) continue;
-    const k = f.flow_group || board.reviews.get(f.review_id)?.flow || 'Other';
+    const r = board.reviews.get(f.review_id);
+    const k = allApps ? board.appName(r?.app_id) || 'Other' : f.flow_group || r?.flow || 'Other';
     (byFlow[k] ??= {})[String(f.sev)] = (byFlow[k][String(f.sev)] || 0) + 1;
   }
   const withF = sortReviews(rs.filter((r) => statsFor(board.findings.values(), r.id).total > 0)).slice(0, 8);
@@ -65,7 +67,7 @@ function QueueCharts({ board }: { board: Board }) {
     .map((r) => { const d = daysBetween(r.created_at, r.delivered_at) ?? 0; return { label: r.flow, parts: [{ key: 'd', v: d, text: fmtDays(d) }], total: d, valueNode: <><b>{fmtDays(d)}</b> d</> }; });
   return (
     <section className="charts" aria-label="Charts">
-      <StackedChart id="byflow" title="Open findings by flow" sub="active reviews, by severity" series={SEV_SERIES} rows={foldRows(byFlow, 8)} rowName="Flow" empty="No open findings in active reviews." />
+      <StackedChart id="byflow" title={allApps ? 'Open findings by app' : 'Open findings by flow'} sub="active reviews, by severity" series={SEV_SERIES} rows={foldRows(byFlow, 8)} rowName={allApps ? 'App' : 'Flow'} empty="No open findings in active reviews." />
       <StackedChart id="progress" title="Progress per review" sub="share of findings solved" series={PROGRESS_SERIES} rows={progRows} rowName="Review" meter empty="No findings delivered yet." />
       <StackedChart id="turnaround" title="Turnaround" sub="days from request to findings" series={[{ key: 'd', label: 'Days', color: 'var(--accent)' }]} rows={turn} rowName="Review" empty="No delivered reviews yet." />
     </section>

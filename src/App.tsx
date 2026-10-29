@@ -44,6 +44,16 @@ export function App() {
   const missing = hash && hash !== 'queue' && board.loaded && !openReview ? hash : null;
   const closePanel = useCallback(() => setPanel(null), []);
 
+  // App filter (All / WalaPlus / WalaOne / Doam …) scopes the KPIs, charts and queue; remembered per browser.
+  const [appFilter, setAppFilterState] = useState<string>(() => { try { return localStorage.getItem('uxr-app') || 'all'; } catch { return 'all'; } });
+  const setAppFilter = (id: string) => { setAppFilterState(id); try { localStorage.setItem('uxr-app', id); } catch { /* storage unavailable */ } };
+  const scoped = useMemo(() => {
+    if (appFilter === 'all' || !board.apps.some((a) => a.id === appFilter)) return board;
+    const reviews = new Map([...board.reviews].filter(([, r]) => r.app_id === appFilter));
+    const findings = new Map([...board.findings].filter(([, f]) => reviews.has(f.review_id)));
+    return { ...board, reviews, findings };
+  }, [board, appFilter]);
+
   if (!configured) {
     return <div className="signin"><div className="signin-card"><h2>UX Reviews is not configured</h2><p>Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> (see <code>.env.example</code> and the README), then rebuild.</p></div></div>;
   }
@@ -56,17 +66,23 @@ export function App() {
       ) : (
         <div className="wrap">
           {board.error && <div className="note-bar" style={{ marginBottom: 12 }}>The board could not load: {board.error}. Reload the page.</div>}
-          <Kpis board={board} />
+          {board.apps.length > 0 && (
+            <div className="chips apps" role="group" aria-label="App">
+              <button type="button" className="fchip" aria-pressed={appFilter === 'all'} onClick={() => setAppFilter('all')}>All apps</button>
+              {board.apps.map((a) => <button key={a.id} type="button" className="fchip" aria-pressed={appFilter === a.id} onClick={() => setAppFilter(a.id)}>{a.name}</button>)}
+            </div>
+          )}
+          <Kpis board={scoped} />
           {openReview ? (
             <ReviewPage review={openReview} board={board} meId={meId} onEditRequest={(r) => setPanel({ kind: 'request', review: r })}
               onAddFinding={(rid) => setPanel({ kind: 'finding', reviewId: rid })} onEditFinding={(f) => setPanel({ kind: 'finding', reviewId: f.review_id, finding: f })}
               onOpenImage={(src, cap) => setLightbox({ src, cap })} />
           ) : (
-            <Queue board={board} missing={missing} onNew={() => setPanel({ kind: 'request' })} />
+            <Queue board={scoped} allApps={appFilter === 'all'} missing={missing} onNew={() => setPanel({ kind: 'request' })} />
           )}
         </div>
       )}
-      {panel?.kind === 'request' && <RequestForm review={panel.review} board={board} meId={meId} onClose={closePanel} />}
+      {panel?.kind === 'request' && <RequestForm review={panel.review} board={board} meId={meId} defaultApp={appFilter} onClose={closePanel} />}
       {panel?.kind === 'finding' && <FindingForm reviewId={panel.reviewId} finding={panel.finding} board={board} meId={meId} onClose={closePanel} />}
       {lightbox && <Lightbox src={lightbox.src} cap={lightbox.cap} onClose={() => setLightbox(null)} />}
       {toastState.message && <div className="toast" role="status">{toastState.message}</div>}

@@ -9,8 +9,15 @@ export interface Profile {
   avatar_url: string | null;
 }
 
+export interface AppDef {
+  id: string;
+  name: string;
+  sort_order: number;
+}
+
 export interface Review {
   id: string;
+  app_id: string;
   flow: string;
   platform: string;
   build: string;

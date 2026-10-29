@@ -23,7 +23,7 @@ The first review (`uxr-audit-2026-10`) is the Android app audit of Oct 2026 with
 
 ### 1. Supabase project
 1. Create a project at supabase.com (region: closest to KSA, e.g. Frankfurt).
-2. **SQL editor** → run `supabase/migrations/0001_init.sql`, then `supabase/seed.sql`. (Both are safe to re-run.)
+2. **SQL editor** → run `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_apps.sql`, then `supabase/seed.sql`. (All are safe to re-run.)
 3. **Authentication → Providers → Google**: enable it. In Google Cloud Console create an OAuth client (Web application) with the authorized redirect URI shown by Supabase (`https://<project-ref>.supabase.co/auth/v1/callback`); paste client id and secret into Supabase. Only `walaplus.com` accounts can sign up — the database rejects everything else.
 4. **Authentication → URL configuration**: Site URL = your Vercel URL; Redirect URLs = that URL and `http://localhost:5173` for local work.
 5. **Settings → API**: copy the Project URL and the `anon` public key (used in step 3 below).
@@ -49,9 +49,10 @@ cp .env.example .env.local   # fill in the two VITE_ values
 npm run dev                  # http://localhost:5173
 ```
 
-## Data model (`supabase/migrations/0001_init.sql`)
+## Data model (`supabase/migrations/`)
+- `apps` — the products the board covers (WalaPlus, WalaOne, Doam). Add a row to add an app; the filter, request form and Slack alerts pick it up.
 - `profiles` — one per Google account (name, avatar), kept in sync by a trigger on `auth.users`.
-- `reviews` — one per request: flow, platform, build, screens, figma, languages, reach, story, requested_by, reviewer, status, dates, page, `slack` (events already posted).
+- `reviews` — one per request: app_id, flow, platform, build, screens, figma, languages, reach, story, requested_by, reviewer, status, dates, page, `slack` (events already posted).
 - `findings` — `id = '<review id>.<code>'`: screen, type, lang, sev (3 major · 2 minor · 1 cosmetic), description (`**bold**`, `` `code` ``), prod/figma refs, state (`open` · `solved` · `wontfix` · `design`) with who/when, note with who/when, `images` (paths in the private `screenshots` bucket), sort_order, source.
 - Access: every signed-in `walaplus.com` member can read and write the board; screenshots are readable by members and deletable by their uploader. Realtime is on for all three tables.
 

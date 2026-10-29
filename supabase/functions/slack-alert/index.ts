@@ -6,7 +6,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 
 type Review = {
-  id: string; flow: string; platform: string; build: string; status: string; source: string;
+  id: string; app_id: string; flow: string; platform: string; build: string; status: string; source: string;
   requested_by: string | null; requester_label: string | null; reviewer: string | null; reviewer_label: string | null;
   slack: Record<string, string> | null;
 };
@@ -24,13 +24,16 @@ Deno.serve(async (req) => {
   let reviewId: string | undefined;
   try { reviewId = (await req.json())?.reviewId; } catch { /* no body: sweep every review */ }
 
-  let q = sb.from('reviews').select('id, flow, platform, build, status, source, requested_by, requester_label, reviewer, reviewer_label, slack');
+  let q = sb.from('reviews').select('id, app_id, flow, platform, build, status, source, requested_by, requester_label, reviewer, reviewer_label, slack');
   if (reviewId) q = q.eq('id', reviewId);
   const { data: reviews, error } = await q;
   if (error) return json({ error: error.message }, 500);
+  const { data: apps } = await sb.from('apps').select('id, name');
+  const appName = (id: string) => (apps ?? []).find((a) => a.id === id)?.name ?? id;
 
   const posted: string[] = [];
   for (const r of (reviews ?? []) as Review[]) {
+    const title = `${appName(r.app_id)} · ${r.flow} (${r.platform})`;
     const slack = r.slack ?? {};
     const event = r.status === 'requested' && !slack.requested ? 'requested'
       : r.status === 'delivered' && !slack.delivered ? 'delivered'
@@ -48,15 +51,15 @@ Deno.serve(async (req) => {
     const link = `${app}/#${r.id}`;
     let text = '';
     if (event === 'requested') {
-      text = `:new: *UX review requested* — ${r.flow} (${r.platform})\nRequested by ${who(r.requested_by, r.requester_label)} · build: ${r.build}\nUX team: open the board to start the review → ${link}`;
+      text = `:new: *UX review requested* — ${title}\nRequested by ${who(r.requested_by, r.requester_label)} · build: ${r.build}\nUX team: open the board to start the review → ${link}`;
     } else {
       const { data: fs } = await sb.from('findings').select('sev, state').eq('review_id', r.id);
       const list = (fs ?? []) as Finding[];
       const n = (fn: (f: Finding) => boolean) => list.filter(fn).length;
       if (event === 'delivered') {
-        text = `:white_check_mark: *Findings delivered* — ${r.flow} (${r.platform})\n${list.length} findings: ${n(f => f.sev === 3)} major · ${n(f => f.sev === 2)} minor · ${n(f => f.sev === 1)} cosmetic · reviewer: ${who(r.reviewer, r.reviewer_label)}\nEngineer: tick each finding Solved on the board as you fix → ${link}`;
+        text = `:white_check_mark: *Findings delivered* — ${title}\n${list.length} findings: ${n(f => f.sev === 3)} major · ${n(f => f.sev === 2)} minor · ${n(f => f.sev === 1)} cosmetic · reviewer: ${who(r.reviewer, r.reviewer_label)}\nEngineer: tick each finding Solved on the board as you fix → ${link}`;
       } else {
-        text = `:tada: *Review closed* — ${r.flow} (${r.platform})\n${n(f => f.state === 'solved')} of ${list.length} solved · ${n(f => f.state === 'wontfix')} won't fix · ${n(f => f.state === 'design')} need a design decision\n${link}`;
+        text = `:tada: *Review closed* — ${title}\n${n(f => f.state === 'solved')} of ${list.length} solved · ${n(f => f.state === 'wontfix')} won't fix · ${n(f => f.state === 'design')} need a design decision\n${link}`;
       }
     }
     const res = await fetch(hook, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) });

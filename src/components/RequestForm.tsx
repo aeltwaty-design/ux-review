@@ -5,9 +5,10 @@ import { PLATFORMS, type Review } from '../lib/types';
 import { Field, Sheet } from './Sheet';
 import { useToast } from './Toast';
 
-export function RequestForm({ review: r, board, meId, onClose }: { review?: Review; board: Board; meId: string | null; onClose: () => void }) {
+export function RequestForm({ review: r, board, meId, defaultApp, onClose }: { review?: Review; board: Board; meId: string | null; defaultApp?: string; onClose: () => void }) {
   const toast = useToast();
-  const [v, setV] = useState({ flow: r?.flow ?? '', platform: r?.platform ?? 'Android', build: r?.build ?? '', screens: r?.screens ?? '', figma: r?.figma ?? '', languages: r?.languages ?? ['AR', 'EN'], reach: r?.reach ?? '', story: r?.story ?? '' });
+  const firstApp = board.apps.find((a) => a.id === defaultApp)?.id ?? board.apps[0]?.id ?? 'walaplus';
+  const [v, setV] = useState({ app_id: r?.app_id ?? firstApp, flow: r?.flow ?? '', platform: r?.platform ?? 'Android', build: r?.build ?? '', screens: r?.screens ?? '', figma: r?.figma ?? '', languages: r?.languages ?? ['AR', 'EN'], reach: r?.reach ?? '', story: r?.story ?? '' });
   const [err, setErr] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof v, val: string | string[]) => setV((p) => ({ ...p, [k]: val }));
@@ -20,7 +21,7 @@ export function RequestForm({ review: r, board, meId, onClose }: { review?: Revi
     setErr(er);
     if (Object.keys(er).length) return;
     setBusy(true);
-    const data = { flow: v.flow.trim(), platform: v.platform, build: v.build.trim(), screens: v.screens.trim(), figma: v.figma.trim(), languages: v.languages, reach: v.reach.trim(), story: v.story.trim() };
+    const data = { app_id: v.app_id, flow: v.flow.trim(), platform: v.platform, build: v.build.trim(), screens: v.screens.trim(), figma: v.figma.trim(), languages: v.languages, reach: v.reach.trim(), story: v.story.trim() };
     let res;
     if (r) { res = await board.updateReview(r.id, data); if (res.ok) toast('Request updated.'); }
     else {
@@ -36,6 +37,7 @@ export function RequestForm({ review: r, board, meId, onClose }: { review?: Revi
   return (
     <Sheet title={r ? 'Edit request' : 'Request a UX review'} onClose={onClose}>
       <form onSubmit={submit} noValidate>
+        <div className="fld"><label htmlFor="in-app">App</label><select id="in-app" value={v.app_id} onChange={(e) => set('app_id', e.target.value)}>{board.apps.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
         <Field name="flow" label="Flow" error={err.flow}><input type="text" id="in-flow" value={v.flow} onChange={(e) => set('flow', e.target.value)} placeholder="e.g. Market – vouchers list and details" dir="auto" /></Field>
         <div className="fld"><label>Platform</label><div className="opts">{PLATFORMS.map((p) => <label key={p}><input type="radio" name="platform" value={p} checked={v.platform === p} onChange={() => set('platform', p)} />{p}</label>)}</div></div>
         <Field name="build" label="Build" error={err.build}><input type="text" id="in-build" value={v.build} onChange={(e) => set('build', e.target.value)} placeholder="Version and APK / TestFlight link" dir="auto" /></Field>
