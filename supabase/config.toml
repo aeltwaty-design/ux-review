@@ -1,0 +1,6 @@
+# Supabase CLI settings for this repo (optional: the SQL editor works without the CLI).
+project_id = "ux-review"
+
+[functions.slack-alert]
+# Only signed-in members can trigger alerts (the app passes the user's session token).
+verify_jwt = true
