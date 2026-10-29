@@ -1,9 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const env = import.meta.env as Record<string, string | undefined>;
+// VITE_* from .env.local / Vercel, or the NEXT_PUBLIC_* names the Vercel ↔ Supabase integration creates automatically.
+const url = env.VITE_SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL;
+const key = env.VITE_SUPABASE_ANON_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-/** False until VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set (see .env.example). */
+/** False until the Supabase URL and public key are set (see .env.example). */
 export const configured = Boolean(url && key);
 
 export const supabase = createClient(url ?? 'https://not-configured.supabase.co', key ?? 'not-configured', {
