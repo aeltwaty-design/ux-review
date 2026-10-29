@@ -1,0 +1,23 @@
+{
+  "display_information": {
+    "name": "UX Reviews",
+    "description": "Alerts from the WalaPlus UX Reviews board: requests raised, findings delivered, reviews closed",
+    "background_color": "#0f7a66"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "UX Reviews",
+      "always_online": true
+    }
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": ["incoming-webhook"]
+    }
+  },
+  "settings": {
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  }
+}

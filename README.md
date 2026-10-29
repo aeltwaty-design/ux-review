@@ -29,7 +29,7 @@ The first review (`uxr-audit-2026-10`) is the Android app audit of Oct 2026 with
 5. **Settings → API**: copy the Project URL and the `anon` public key (used in step 3 below).
 
 ### 2. Slack alerts (edge function)
-1. In Slack, add an **Incoming Webhook** for `#ux-review` (Apps → Incoming Webhooks → Add to Slack) and copy its URL.
+1. Create the Slack app from `slack/app-manifest.json` (api.slack.com/apps → Create New App → From a manifest), then Incoming Webhooks → *Add New Webhook to Workspace* → `#ux-review` → copy the webhook URL.
 2. With the Supabase CLI (`npm i -g supabase`, `supabase login`, `supabase link --project-ref <ref>`):
    ```bash
    supabase secrets set SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..." APP_URL="https://<your-vercel-domain>"
