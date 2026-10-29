@@ -64,6 +64,12 @@ export function App() {
       <TopBar user={auth.user} profile={meId ? board.profiles.get(meId) ?? null : null} onNew={() => setPanel({ kind: 'request' })} onPeople={board.isAdmin ? () => setPanel({ kind: 'people' }) : undefined} onSignOut={auth.signOut} />
       {!auth.ready ? null : !auth.session ? (
         <SignIn onSignIn={auth.signIn} error={auth.authError} />
+      ) : board.accessDenied ? (
+        <div className="signin"><div className="signin-card">
+          <h2>No access</h2>
+          <p>UX Reviews is invitation only. Ask an admin to invite your walaplus.com address, then sign in again.</p>
+          <button className="btn" type="button" onClick={auth.signOut}>Sign out</button>
+        </div></div>
       ) : (
         <div className="wrap">
           {board.error && <div className="note-bar" style={{ marginBottom: 12 }}>The board could not load: {board.error}. Reload the page.</div>}

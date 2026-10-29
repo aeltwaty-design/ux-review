@@ -4,7 +4,7 @@ export function SignIn({ onSignIn, error }: { onSignIn: () => void; error: strin
   return (
     <div className="signin"><div className="signin-card">
       <h2>UX Reviews</h2>
-      <p>Engineers raise review requests, the UX team delivers findings, and both track what is solved. Sign in with your {ALLOWED_DOMAIN} Google account.</p>
+      <p>Engineers raise review requests, the UX team delivers findings, and both track what is solved. Invitation only: sign in with the {ALLOWED_DOMAIN} Google account an admin invited.</p>
       {error && <div className="note-bar" style={{ marginBottom: 14 }}>{error}</div>}
       <button className="btn primary" type="button" onClick={onSignIn}>Sign in with Google</button>
     </div></div>

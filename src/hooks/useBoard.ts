@@ -136,6 +136,14 @@ export function useBoard(enabled: boolean, meId: string | null) {
   const role: Role = (meId && profiles.get(meId)?.role) || 'engineer'; // no role column yet → everyone is an engineer until 0003_roles.sql runs
   const isUx = role === 'ux' || role === 'admin';
   const isAdmin = role === 'admin';
+  // Invitation only: once loaded, a signed-in person without an active profile (not invited, or access removed) sees nothing.
+  const accessDenied = loaded && !error && !!meId && !(profiles.get(meId)?.active ?? false);
+
+  const setActive = useCallback(async (profileId: string, active: boolean): Promise<WriteResult> => {
+    const { error: e } = await supabase.from('profiles').update({ active }).eq('id', profileId);
+    if (!e) setProfiles((m) => { const p = m.get(profileId); return p ? new Map(m).set(profileId, { ...p, active }) : m; });
+    return fail(e);
+  }, []);
 
   const setRole = useCallback(async (profileId: string, newRole: Role): Promise<WriteResult> => {
     const { error: e } = await supabase.from('profiles').update({ role: newRole }).eq('id', profileId);
@@ -155,8 +163,8 @@ export function useBoard(enabled: boolean, meId: string | null) {
     return fail(e);
   }, []);
 
-  return useMemo(() => ({ reviews, findings, profiles, apps, loaded, error, role, isUx, isAdmin, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot, setRole, listAssignments, assignRole, removeAssignment }),
-    [reviews, findings, profiles, apps, loaded, error, role, isUx, isAdmin, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot, setRole, listAssignments, assignRole, removeAssignment]);
+  return useMemo(() => ({ reviews, findings, profiles, apps, loaded, error, role, isUx, isAdmin, accessDenied, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot, setRole, setActive, listAssignments, assignRole, removeAssignment }),
+    [reviews, findings, profiles, apps, loaded, error, role, isUx, isAdmin, accessDenied, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot, setRole, setActive, listAssignments, assignRole, removeAssignment]);
 }
 export type Board = ReturnType<typeof useBoard>;
 

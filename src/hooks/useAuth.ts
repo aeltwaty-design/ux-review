@@ -10,7 +10,8 @@ export function useAuth() {
   useEffect(() => {
     if (!configured) return;
     const params = new URLSearchParams(location.search);
-    if (params.get('error_description')) setAuthError(params.get('error_description'));
+    const desc = params.get('error_description');
+    if (desc) setAuthError(/database error/i.test(desc) ? `This board is invitation only. Ask an admin to invite your ${ALLOWED_DOMAIN} address, then sign in again.` : desc);
     supabase.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true); });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
