@@ -11,9 +11,10 @@ import { ReviewPage } from './components/ReviewPage';
 import { RequestForm } from './components/RequestForm';
 import { FindingForm } from './components/FindingForm';
 import { Lightbox } from './components/Lightbox';
+import { PeoplePanel } from './components/PeoplePanel';
 import { ToastContext, useToastState } from './components/Toast';
 
-export type Panel = { kind: 'request'; review?: Review } | { kind: 'finding'; reviewId: string; finding?: Finding } | null;
+export type Panel = { kind: 'request'; review?: Review } | { kind: 'finding'; reviewId: string; finding?: Finding } | { kind: 'people' } | null;
 
 function useHash() {
   const [hash, setHash] = useState(() => location.hash.replace(/^#/, ''));
@@ -60,7 +61,7 @@ export function App() {
 
   return (
     <ToastContext.Provider value={toastState.toast}>
-      <TopBar user={auth.user} profile={meId ? board.profiles.get(meId) ?? null : null} onNew={() => setPanel({ kind: 'request' })} onSignOut={auth.signOut} />
+      <TopBar user={auth.user} profile={meId ? board.profiles.get(meId) ?? null : null} onNew={() => setPanel({ kind: 'request' })} onPeople={board.isAdmin ? () => setPanel({ kind: 'people' }) : undefined} onSignOut={auth.signOut} />
       {!auth.ready ? null : !auth.session ? (
         <SignIn onSignIn={auth.signIn} error={auth.authError} />
       ) : (
@@ -84,6 +85,7 @@ export function App() {
       )}
       {panel?.kind === 'request' && <RequestForm review={panel.review} board={board} meId={meId} defaultApp={appFilter} onClose={closePanel} />}
       {panel?.kind === 'finding' && <FindingForm reviewId={panel.reviewId} finding={panel.finding} board={board} meId={meId} onClose={closePanel} />}
+      {panel?.kind === 'people' && board.isAdmin && <PeoplePanel board={board} meId={meId} onClose={closePanel} />}
       {lightbox && <Lightbox src={lightbox.src} cap={lightbox.cap} onClose={() => setLightbox(null)} />}
       {toastState.message && <div className="toast" role="status">{toastState.message}</div>}
     </ToastContext.Provider>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { BUCKET, supabase } from '../lib/supabase';
-import type { AppDef, Finding, Profile, Review, ShotRef } from '../lib/types';
+import type { AppDef, Finding, Profile, Review, Role, RoleAssignment, ShotRef } from '../lib/types';
 import { nowIso } from '../lib/format';
 
 type Change = { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> };
@@ -33,7 +33,7 @@ export function useBoard(enabled: boolean, meId: string | null) {
       const [r, f, p, a] = await Promise.all([
         supabase.from('reviews').select('*'),
         supabase.from('findings').select('*'),
-        supabase.from('profiles').select('id, email, name, avatar_url'),
+        supabase.from('profiles').select('*'), // '*' so the app still loads before the roles migration is applied
         supabase.from('apps').select('*').order('sort_order'),
       ]);
       if (cancelled) return;
@@ -132,8 +132,31 @@ export function useBoard(enabled: boolean, meId: string | null) {
 
   const appName = useCallback((id: string | null | undefined) => apps.find((a) => a.id === id)?.name || id || '', [apps]);
 
-  return useMemo(() => ({ reviews, findings, profiles, apps, loaded, error, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot }),
-    [reviews, findings, profiles, apps, loaded, error, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot]);
+  // Roles: engineer (default) | ux | admin — enforced by the database; the UI only hides what would be refused.
+  const role: Role = (meId && profiles.get(meId)?.role) || 'engineer'; // no role column yet → everyone is an engineer until 0003_roles.sql runs
+  const isUx = role === 'ux' || role === 'admin';
+  const isAdmin = role === 'admin';
+
+  const setRole = useCallback(async (profileId: string, newRole: Role): Promise<WriteResult> => {
+    const { error: e } = await supabase.from('profiles').update({ role: newRole }).eq('id', profileId);
+    if (!e) setProfiles((m) => { const p = m.get(profileId); return p ? new Map(m).set(profileId, { ...p, role: newRole }) : m; });
+    return fail(e);
+  }, []);
+  const listAssignments = useCallback(async (): Promise<RoleAssignment[]> => {
+    const { data } = await supabase.from('role_assignments').select('*').order('created_at');
+    return (data ?? []) as RoleAssignment[];
+  }, []);
+  const assignRole = useCallback(async (email: string, newRole: Role): Promise<WriteResult> => {
+    const { error: e } = await supabase.from('role_assignments').upsert({ email: email.trim().toLowerCase(), role: newRole });
+    return fail(e);
+  }, []);
+  const removeAssignment = useCallback(async (email: string): Promise<WriteResult> => {
+    const { error: e } = await supabase.from('role_assignments').delete().eq('email', email);
+    return fail(e);
+  }, []);
+
+  return useMemo(() => ({ reviews, findings, profiles, apps, loaded, error, role, isUx, isAdmin, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot, setRole, listAssignments, assignRole, removeAssignment }),
+    [reviews, findings, profiles, apps, loaded, error, role, isUx, isAdmin, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot, setRole, listAssignments, assignRole, removeAssignment]);
 }
 export type Board = ReturnType<typeof useBoard>;
 

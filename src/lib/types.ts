@@ -2,11 +2,21 @@ export type Status = 'requested' | 'in_progress' | 'delivered' | 'done';
 export type FState = 'open' | 'solved' | 'wontfix' | 'design';
 export type Sev = 1 | 2 | 3;
 
+export type Role = 'engineer' | 'ux' | 'admin';
+export const ROLES: Record<Role, string> = { engineer: 'Engineer', ux: 'UX team', admin: 'Admin' };
+
 export interface Profile {
   id: string;
   email: string;
   name: string | null;
   avatar_url: string | null;
+  role: Role;
+}
+
+export interface RoleAssignment {
+  email: string;
+  role: Role;
+  created_at: string;
 }
 
 export interface AppDef {

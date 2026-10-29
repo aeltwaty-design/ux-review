@@ -71,10 +71,10 @@ export function FindingRow({ f, board, meId, onEdit, onOpenImage }: { f: Finding
         <div className="fctl">
           <select className="ctl" value={st} onChange={(e) => setState(e.target.value as FState)}>{(Object.keys(FSTATE) as FState[]).map((k) => <option key={k} value={k}>{FSTATE[k]}</option>)}</select>
           <textarea rows={1} value={note} placeholder="Note for the reviewer, e.g. why it stays open" dir="auto" onChange={(e) => onNote(e.target.value)} onBlur={(e) => { window.clearTimeout(noteTimer.current); saveNote(e.target.value); }} />
-          <button type="button" className="btn sm" onClick={() => onEdit(f)}>Edit</button>
-          {confirmDel ? (
+          {board.isUx && <button type="button" className="btn sm" onClick={() => onEdit(f)}>Edit</button>}
+          {board.isUx && (confirmDel ? (
             <span className="confirm">Delete this finding? <button type="button" className="btn sm danger" onClick={del}>Delete</button><button type="button" className="btn sm" onClick={() => setConfirmDel(false)}>Keep</button></span>
-          ) : <button type="button" className="btn sm" onClick={() => setConfirmDel(true)}>Delete</button>}
+          ) : <button type="button" className="btn sm" onClick={() => setConfirmDel(true)}>Delete</button>)}
         </div>
         {meta && <div className="fmeta">{meta}</div>}
       </div>

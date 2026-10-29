@@ -49,6 +49,8 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
 
   const link = (u: string) => <a href={u} target="_blank" rel="noopener noreferrer">{u.replace(/^https?:\/\//, '').slice(0, 60)}{u.length > 68 ? '…' : ''}</a>;
   const dd = (label: string, v: React.ReactNode, wide = false) => (v ? <div className={wide ? 'wide' : undefined}><dt>{label}</dt><dd>{v}</dd></div> : null);
+  const ux = board.isUx;
+  const mineOpen = r.status === 'requested' && r.requested_by != null && r.requested_by === meId; // an engineer may edit or withdraw their own open request
 
   return (
     <>
@@ -63,18 +65,19 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
           {confirmWithdraw ? (
             <span className="confirm">Withdraw this request? <button type="button" className="btn sm danger" onClick={withdraw}>Withdraw</button><button type="button" className="btn sm" onClick={() => setConfirmWithdraw(false)}>Keep</button></span>
           ) : r.status === 'requested' ? (
-            <><button type="button" className="btn primary" onClick={() => act({ status: 'in_progress', reviewer: meId, reviewer_label: null, started_at: t }, 'Review started. You are the reviewer.')}>Start review</button>
-              <button type="button" className="btn" onClick={() => onEditRequest(r)}>Edit request</button>
-              <button type="button" className="btn" onClick={() => setConfirmWithdraw(true)}>Withdraw</button></>
+            <>{ux && <button type="button" className="btn primary" onClick={() => act({ status: 'in_progress', reviewer: meId, reviewer_label: null, started_at: t }, 'Review started. You are the reviewer.')}>Start review</button>}
+              {(ux || mineOpen) && <button type="button" className="btn" onClick={() => onEditRequest(r)}>Edit request</button>}
+              {(ux || mineOpen) && <button type="button" className="btn" onClick={() => setConfirmWithdraw(true)}>Withdraw</button>}
+              {!ux && !mineOpen && <span className="hint">Waiting for the UX team to start the review.</span>}</>
           ) : r.status === 'in_progress' ? (
-            <><button type="button" className="btn primary" onClick={() => act({ status: 'delivered', delivered_at: t }, 'Marked delivered. The engineer is alerted on Slack.', true)}>Mark delivered</button>
-              <button type="button" className="btn" onClick={() => onEditRequest(r)}>Edit request</button></>
+            ux ? <><button type="button" className="btn primary" onClick={() => act({ status: 'delivered', delivered_at: t }, 'Marked delivered. The engineer is alerted on Slack.', true)}>Mark delivered</button>
+              <button type="button" className="btn" onClick={() => onEditRequest(r)}>Edit request</button></> : <span className="hint">The UX team is reviewing.</span>
           ) : r.status === 'delivered' ? (
-            <><button type="button" className="btn primary" onClick={() => act({ status: 'done', closed_at: t }, 'Review closed.', true)}>Close review</button>
+            ux ? <><button type="button" className="btn primary" onClick={() => act({ status: 'done', closed_at: t }, 'Review closed.', true)}>Close review</button>
               <button type="button" className="btn" onClick={() => act({ status: 'in_progress' }, 'Back to in progress.')}>Back to in progress</button>
-              <button type="button" className="btn" onClick={() => onEditRequest(r)}>Edit request</button></>
+              <button type="button" className="btn" onClick={() => onEditRequest(r)}>Edit request</button></> : <span className="hint">Tick each finding Solved as you fix it; the UX team closes the review.</span>
           ) : (
-            <button type="button" className="btn" onClick={() => act({ status: 'delivered', closed_at: null }, 'Reopened.')}>Reopen</button>
+            ux ? <button type="button" className="btn" onClick={() => act({ status: 'delivered', closed_at: null }, 'Reopened.')}>Reopen</button> : null
           )}
         </div>
       </div>
@@ -105,7 +108,7 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
           <div className="chips">{[3, 2, 1].map((s) => <button key={s} type="button" className="fchip" aria-pressed={sevF.has(s)} onClick={() => setSevF((prev) => { const n = new Set(prev); if (n.has(s)) n.delete(s); else n.add(s); return n; })}>{SEV[s as 1 | 2 | 3]}</button>)}</div>
           <input className="search" type="search" id="f-search" placeholder="Search code, screen, text" value={query} onChange={(e) => setQuery(e.target.value)} dir="auto" />
           <select className="ctl" id="f-sort" value={sort} onChange={(e) => setSort(e.target.value as 'flow' | 'sev')}><option value="flow">Order: flow</option><option value="sev">Order: severity</option></select>
-          <button type="button" className="btn" onClick={() => onAddFinding(r.id)}>Add finding</button>
+          {ux && <button type="button" className="btn" onClick={() => onAddFinding(r.id)}>Add finding</button>}
         </div>
         <p className="hint" style={{ margin: '-6px 0 10px' }}>Screenshots: mask names, phone numbers and emails before uploading.</p>
         {all.length === 0 ? (
