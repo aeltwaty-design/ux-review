@@ -16,7 +16,7 @@ export function Kpis({ board }: { board: Board }) {
   return (
     <section className="kpis" aria-label="Summary">
       <Tile n={n(openR)} label="Open requests" cap="requested or in progress" />
-      <Tile n={n(wait)} label="Awaiting fixes" cap="findings delivered, not closed" />
+      <Tile n={n(wait)} label="Delivered" cap="reviews delivered, not closed" />
       <Tile n={n(openF.length)} label="Open findings" cap={<><b>{by[3]}</b> major · <b>{by[2]}</b> minor · <b>{by[1]}</b> cosmetic</>} />
       <Tile n={<>{n(pct)}<small>%</small></>} label="Solved" cap={`${solved} of ${fs.length} findings`} />
       <Tile n={med == null ? '–' : <>{fmtDays(med)}<small> d</small></>} label="Turnaround" cap={durs.length ? `median request → findings, ${durs.length} ${durs.length === 1 ? 'review' : 'reviews'}` : 'no delivered reviews yet'} />

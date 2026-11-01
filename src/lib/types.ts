@@ -98,7 +98,7 @@ export interface Finding {
   source: string;
 }
 
-export const STATUS: Record<Status, string> = { requested: 'Requested', in_progress: 'In progress', delivered: 'Awaiting fixes', done: 'Closed' };
+export const STATUS: Record<Status, string> = { requested: 'Requested', in_progress: 'In progress', delivered: 'Delivered', done: 'Closed' };
 export const SEV: Record<Sev, string> = { 3: 'Major', 2: 'Minor', 1: 'Cosmetic' };
 export const FSTATE: Record<FState, string> = { open: 'Open', solved: 'Solved', wontfix: "Won't fix", design: 'Needs design decision' };
 export const TYPES = ['Copy', 'Visual', 'Data', 'Missing in prod', 'Missing in Figma', 'Component', 'Flow', 'State', 'RTL/LTR', 'Layout', 'Navigation', 'Typography & spacing', 'Other'];
