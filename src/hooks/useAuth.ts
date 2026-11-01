@@ -11,7 +11,7 @@ export function useAuth() {
     if (!configured) return;
     const params = new URLSearchParams(location.search);
     const desc = params.get('error_description');
-    if (desc) setAuthError(/database error/i.test(desc) ? `This board is invitation only. Ask an admin to invite your ${ALLOWED_DOMAIN} address, then sign in again.` : desc);
+    if (desc) setAuthError(/database error/i.test(desc) ? `Only ${ALLOWED_DOMAIN} Google accounts can sign in. Choose your work account and try again.` : desc);
     supabase.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true); });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);

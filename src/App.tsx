@@ -13,6 +13,7 @@ import { FindingForm } from './components/FindingForm';
 import { Lightbox } from './components/Lightbox';
 import { MyIssues } from './components/MyIssues';
 import { PeoplePanel } from './components/PeoplePanel';
+import { ReviewLinkView } from './components/ReviewLinkView';
 import { ToastContext, useToastState } from './components/Toast';
 
 export type Panel = { kind: 'request'; review?: Review } | { kind: 'finding'; reviewId: string; finding?: Finding } | { kind: 'people' } | null;
@@ -44,6 +45,9 @@ export function App() {
 
   const openReview = useMemo(() => (hash && hash !== 'queue' ? board.reviews.get(hash) ?? null : null), [hash, board.reviews]);
   const missing = hash && hash !== 'queue' && board.loaded && !openReview ? hash : null;
+  // A review link opened by someone whose board does not carry that review (viewer, engineer, product owner of another
+  // product) is served read-only through review_by_link. UX and admins see every review, so for them a miss is a miss.
+  const linkId = missing && !board.isUx ? missing : null;
   const closePanel = useCallback(() => setPanel(null), []);
 
   // App filter (All / WalaPlus / WalaOne / Doam …) scopes the KPIs, charts and queue; remembered per browser.
@@ -71,7 +75,17 @@ export function App() {
       ) : board.accessDenied ? (
         <div className="signin"><div className="signin-card">
           <h2>No access</h2>
-          <p>UX Reviews is invitation only. Ask an admin to invite your walaplus.com address, then sign in again.</p>
+          <p>Your access to UX Reviews was removed. Ask an admin to restore it, then sign in again.</p>
+          <button className="btn" type="button" onClick={auth.signOut}>Sign out</button>
+        </div></div>
+      ) : linkId ? (
+        <div className="wrap">
+          <ReviewLinkView reviewId={linkId} meId={meId} hasBoard={!board.isViewer} onOpenImage={(src, cap) => setLightbox({ src, cap })} />
+        </div>
+      ) : board.isViewer ? (
+        <div className="signin"><div className="signin-card">
+          <h2>Signed in as a viewer</h2>
+          <p>Open a review link that was shared with you to read that review. The board itself is for invited members: ask an admin to invite your walaplus.com address if you need it.</p>
           <button className="btn" type="button" onClick={auth.signOut}>Sign out</button>
         </div></div>
       ) : !board.isUx && !board.isPo ? (
