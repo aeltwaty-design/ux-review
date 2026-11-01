@@ -52,7 +52,6 @@ export function ReviewLinkView({ reviewId, meId, hasBoard, onOpenImage }: { revi
         {dd('Figma', r.figma && link(r.figma))}
         {dd('Languages', (r.languages || []).join(', '))}
         {dd('Related story', r.story && <Md text={r.story} />)}
-        {dd('Findings page', r.page && link(r.page))}
         {dd('Screens', r.screens, true)}
         {dd('How to reach the flow', r.reach && <Md text={r.reach} />, true)}
       </dl>

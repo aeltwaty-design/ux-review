@@ -18,7 +18,6 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'flow' | 'sev'>('flow');
   const [confirmWithdraw, setConfirmWithdraw] = useState(false);
-  const [page, setPage] = useState<string | null>(null);
   const st = statsFor(board.findings.values(), r.id);
 
   const all = useMemo(() => [...board.findings.values()].filter((f) => f.review_id === r.id), [board.findings, r.id]);
@@ -42,7 +41,6 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
     if (!res.ok) return toast('Could not withdraw: ' + res.error);
     toast('Request withdrawn.'); location.hash = '#queue';
   };
-  const savePage = () => { const val = (page ?? r.page ?? '').trim(); if ((r.page || '') !== val) board.updateReview(r.id, { page: val || null }); };
 
   const byScreen: Record<string, Record<string, number>> = {};
   for (const f of all) { if (f.state !== 'open') continue; const k = f.screen || 'Unspecified'; (byScreen[k] ??= {})[String(f.sev)] = (byScreen[k][String(f.sev)] || 0) + 1; }
@@ -92,9 +90,6 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
         {dd('Figma', r.figma && link(r.figma))}
         {dd('Languages', (r.languages || []).join(', '))}
         {dd('Related story', r.story && <Md text={r.story} />)}
-        {r.status !== 'requested'
-          ? dd('Findings page', <input type="url" id={'page-' + r.id} value={page ?? r.page ?? ''} placeholder="https://…" dir="ltr" onChange={(e) => setPage(e.target.value)} onBlur={savePage} />)
-          : dd('Findings page', r.page && link(r.page))}
         {dd('Screens', r.screens, true)}
         {dd('How to reach the flow', r.reach && <Md text={r.reach} />, true)}
       </dl>
