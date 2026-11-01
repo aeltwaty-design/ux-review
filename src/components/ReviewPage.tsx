@@ -60,7 +60,6 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
   const dd = (label: string, v: React.ReactNode, wide = false) => (v ? <div className={wide ? 'wide' : undefined}><dt>{label}</dt><dd>{v}</dd></div> : null);
   const ux = board.isUx;
   const canAssign = board.canAssignIn(r.id);
-  const mineOpen = false; // requests are raised and edited by the UX team only
 
   return (
     <>
@@ -68,34 +67,25 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
       <div className="rhead">
         <div>
           <h2>{r.flow}<span className="chip plat">{board.appName(r.app_id)}</span><span className="chip plat">{r.platform}</span></h2>
-          <div className="rsub">
-            {board.isUx ? (
-              <select className={'pill st-' + r.status} value={r.status} aria-label="Review status" title="Move the review to any stage" onChange={(e) => setStatus(e.target.value as Status)}>
-                {(Object.keys(STATUS) as Status[]).map((k) => <option key={k} value={k}>{STATUS[k]}</option>)}
-              </select>
-            ) : <span className={'pill st-' + r.status}>{STATUS[r.status]}</span>}
-            <span>Requested by {board.nameOf(r.requested_by, r.requester_label)} on {fmtDate(r.created_at)}</span>
+          <div className="rsub"><span className={'pill st-' + r.status}>{STATUS[r.status]}</span><span>Requested by {board.nameOf(r.requested_by, r.requester_label)} on {fmtDate(r.created_at)}</span>
             {r.source === 'audit' && <span>· imported from the Android app audit</span>}</div>
         </div>
         <div className="actions">
           <CopyLink id={r.id} />
           {confirmWithdraw ? (
             <span className="confirm">Withdraw this request? <button type="button" className="btn sm danger" onClick={withdraw}>Withdraw</button><button type="button" className="btn sm" onClick={() => setConfirmWithdraw(false)}>Keep</button></span>
-          ) : r.status === 'requested' ? (
-            <>{ux && <button type="button" className="btn primary" onClick={() => act({ status: 'in_progress', reviewer: meId, reviewer_label: null, started_at: t }, 'Review started. You are the reviewer.')}>Start review</button>}
-              {(ux || mineOpen) && <button type="button" className="btn" onClick={() => onEditRequest(r)}>Edit request</button>}
-              {(ux || mineOpen) && <button type="button" className="btn" onClick={() => setConfirmWithdraw(true)}>Withdraw</button>}
-              {!ux && !mineOpen && <span className="hint">Waiting for the UX team to start the review.</span>}</>
-          ) : r.status === 'in_progress' ? (
-            ux ? <><button type="button" className="btn primary" onClick={() => act({ status: 'delivered', delivered_at: t }, 'Marked delivered. The engineer is alerted on Slack.', true)}>Mark delivered</button>
-              <button type="button" className="btn" onClick={() => onEditRequest(r)}>Edit request</button></> : <span className="hint">The UX team is reviewing.</span>
-          ) : r.status === 'delivered' ? (
-            ux ? <><button type="button" className="btn primary" onClick={() => act({ status: 'done', closed_at: t }, 'Review closed.', true)}>Close review</button>
-              <button type="button" className="btn" onClick={() => act({ status: 'in_progress' }, 'Back to in progress.')}>Back to in progress</button>
-              <button type="button" className="btn" onClick={() => onEditRequest(r)}>Edit request</button></> : <span className="hint">{canAssign ? 'Assign each finding to a collaborator below; the UX team closes the review.' : 'Tick each finding Solved as you fix it; the UX team closes the review.'}</span>
-          ) : (
-            ux ? <button type="button" className="btn" onClick={() => act({ status: 'delivered', closed_at: null }, 'Reopened.')}>Reopen</button> : null
-          )}
+          ) : ux ? (
+            <>
+              <select className="btn primary status-cta" value={r.status} aria-label="Review status" title="Move the review to any stage, forward or back" onChange={(e) => setStatus(e.target.value as Status)}>
+                {(Object.keys(STATUS) as Status[]).map((k) => <option key={k} value={k}>{STATUS[k]}</option>)}
+              </select>
+              {r.status !== 'done' && <button type="button" className="btn" onClick={() => onEditRequest(r)}>Edit request</button>}
+              {r.status === 'requested' && <button type="button" className="btn" onClick={() => setConfirmWithdraw(true)}>Withdraw</button>}
+            </>
+          ) : r.status === 'requested' ? <span className="hint">Waiting for the UX team to start the review.</span>
+            : r.status === 'in_progress' ? <span className="hint">The UX team is reviewing.</span>
+            : r.status === 'delivered' ? <span className="hint">{canAssign ? 'Assign each finding to a collaborator below; the UX team closes the review.' : 'Tick each finding Solved as you fix it; the UX team closes the review.'}</span>
+            : null}
         </div>
       </div>
       <dl className="meta">
