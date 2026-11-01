@@ -40,7 +40,7 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
     if (next === r.status) return;
     const patch: Partial<Review> = { status: next };
     if (next === 'requested') Object.assign(patch, { started_at: null, delivered_at: null, closed_at: null });
-    if (next === 'in_progress') Object.assign(patch, { started_at: r.started_at ?? t, delivered_at: null, closed_at: null, ...(r.reviewer || r.reviewer_label || !board.isUx ? {} : { reviewer: meId, reviewer_label: null }) });
+    if (next === 'in_progress') Object.assign(patch, { started_at: r.started_at ?? t, delivered_at: null, closed_at: null });
     if (next === 'delivered') Object.assign(patch, { started_at: r.started_at ?? t, delivered_at: r.delivered_at ?? t, closed_at: null });
     if (next === 'done') Object.assign(patch, { started_at: r.started_at ?? t, delivered_at: r.delivered_at ?? t, closed_at: r.closed_at ?? t });
     act(patch, 'Status set to ' + STATUS[next] + '.', next === 'delivered' || next === 'done');
@@ -85,8 +85,8 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
                 {(closed ? (Object.keys(STATUS) as Status[]) : stages).map((k) => <option key={k} value={k}>{STATUS[k]}</option>)}
               </select>
               {closed && <span className="hint">Only an admin can reopen.</span>}
-              {ux && r.status !== 'done' && <button type="button" className="btn" onClick={() => onEditRequest(r)}>Edit request</button>}
-              {ux && r.status === 'requested' && <button type="button" className="btn" onClick={() => setConfirmWithdraw(true)}>Withdraw</button>}
+              {board.isAdmin && r.status !== 'done' && <button type="button" className="btn" onClick={() => onEditRequest(r)}>Edit request</button>}
+              {board.isAdmin && r.status === 'requested' && <button type="button" className="btn" onClick={() => setConfirmWithdraw(true)}>Withdraw</button>}
             </>
           ) : r.status === 'requested' ? <span className="hint">Waiting for the UX team to start the review.</span>
             : r.status === 'in_progress' ? <span className="hint">The UX team is reviewing.</span>
