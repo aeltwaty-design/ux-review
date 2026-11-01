@@ -4,6 +4,10 @@
 -- (Also undoes the review-level assignee that migration "review_assignee" added on the live project: per-finding
 -- assignment stays the model.)
 
+drop policy if exists "members read reviews" on public.reviews;
+drop policy if exists "members read findings" on public.findings;
+drop policy if exists "members update findings" on public.findings;
+drop policy if exists "members upload screenshots" on storage.objects;
 alter table public.reviews drop column if exists assignee;
 alter table public.reviews drop column if exists assigned_by;
 alter table public.reviews drop column if exists assigned_at;
