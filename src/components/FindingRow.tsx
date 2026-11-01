@@ -43,6 +43,7 @@ export function FindingRow({ f, board, meId, onEdit, onOpenImage }: { f: Finding
     if (fileRef.current) fileRef.current.value = '';
   };
 
+  const setAssignee = async (id: string) => { const res = await board.assign([f.id], id || null); toast(res.ok ? (id ? 'Assigned.' : 'Unassigned.') : 'Could not assign: ' + res.error); };
   const meta = [
     st !== 'open' && (f.state_by || f.state_at || f.state_label) ? `${FSTATE[st]} by ${board.nameOf(f.state_by, f.state_label)}${f.state_at ? ' · ' + fmtDate(f.state_at) : ''}` : '',
     f.note && (f.note_by || f.note_label) ? `Note by ${board.nameOf(f.note_by, f.note_label)}${f.note_at ? ' · ' + fmtDate(f.note_at) : ''}` : '',
@@ -58,6 +59,12 @@ export function FindingRow({ f, board, meId, onEdit, onOpenImage }: { f: Finding
           {f.type && <span className="chip type">{f.type}</span>}{f.lang && <span className="chip lang">{f.lang}</span>}
           {(st === 'wontfix' || st === 'design') && <span className={'chip fs-' + st}>{FSTATE[st]}</span>}
           <span className="fscreen">{[f.flow, f.screen].filter(Boolean).join(' › ')}</span>
+          {board.isUx ? (
+            <select className="ctl assign" value={f.assignee ?? ''} onChange={(e) => setAssignee(e.target.value)} aria-label="Assign to" title="Assign to">
+              <option value="">Unassigned</option>
+              {board.assignable.map((p) => <option key={p.id} value={p.id}>{p.name || p.email}</option>)}
+            </select>
+          ) : f.assignee && f.assignee !== meId ? <span className="chip type">{board.nameOf(f.assignee)}</span> : null}
         </div>
         <div className="fdesc" dir="auto"><Md text={f.description} /></div>
         {(f.prod || f.figma) && <div className="frefs">{[f.prod && 'Prod: ' + f.prod, f.figma && 'Figma: ' + f.figma].filter(Boolean).join(' · ')}</div>}

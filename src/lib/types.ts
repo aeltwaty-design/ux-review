@@ -81,6 +81,9 @@ export interface Finding {
   note_label: string | null;
   note_at: string | null;
   images: ShotRef[];
+  assignee: string | null;
+  assigned_by: string | null;
+  assigned_at: string | null;
   created_by: string | null;
   created_label: string | null;
   created_at: string;

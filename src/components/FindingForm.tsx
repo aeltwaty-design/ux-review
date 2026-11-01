@@ -30,7 +30,7 @@ export function FindingForm({ reviewId, finding: f, board, meId, onClose }: { re
     if (f) { res = await board.updateFinding(f.id, data); if (res.ok) toast('Finding updated.'); }
     else {
       const order = Math.max(0, ...existing.map((x) => x.sort_order || 0)) + 1;
-      const row: Finding = { id, review_id: reviewId, code, flow_group: '', flow: '', ...data, state: 'open', state_by: null, state_label: null, state_at: null, note: '', note_by: null, note_label: null, note_at: null, images: [], created_by: meId, created_label: null, created_at: nowIso(), updated_at: nowIso(), sort_order: order, source: 'board' };
+      const row: Finding = { id, review_id: reviewId, code, flow_group: '', flow: '', ...data, state: 'open', state_by: null, state_label: null, state_at: null, note: '', note_by: null, note_label: null, note_at: null, images: [], assignee: null, assigned_by: null, assigned_at: null, created_by: meId, created_label: null, created_at: nowIso(), updated_at: nowIso(), sort_order: order, source: 'board' };
       res = await board.addFinding(row);
       if (res.ok) toast('Finding added.');
     }

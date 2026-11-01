@@ -50,8 +50,25 @@ export function useBoard(enabled: boolean, meId: string | null) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'findings' }, (pl) => applyChange<Finding>(setFindings, pl as unknown as Change))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (pl) => applyChange<Profile>(setProfiles, pl as unknown as Change))
       .subscribe();
-    return () => { cancelled = true; supabase.removeChannel(ch); };
+    // Rows that STOP being visible to this person (a finding reassigned away from them) send no realtime event, so refresh now and then.
+    const timer = window.setInterval(async () => {
+      if (document.hidden) return;
+      const [r, f] = await Promise.all([supabase.from('reviews').select('*'), supabase.from('findings').select('*')]);
+      if (cancelled || r.error || f.error) return;
+      setReviews(new Map((r.data as Review[]).map((x) => [x.id, x])));
+      setFindings(new Map((f.data as Finding[]).map((x) => [x.id, x])));
+    }, 60_000);
+    return () => { cancelled = true; window.clearInterval(timer); supabase.removeChannel(ch); };
   }, [enabled]);
+
+  // A finding assigned to me can arrive before its review is in the map (the review row itself did not change): fetch it.
+  useEffect(() => {
+    const missing = [...new Set([...findings.values()].map((f) => f.review_id))].filter((id) => !reviews.has(id));
+    if (!missing.length) return;
+    supabase.from('reviews').select('*').in('id', missing).then(({ data }) => {
+      if (data?.length) setReviews((m) => { const n = new Map(m); (data as Review[]).forEach((r) => n.set(r.id, r)); return n; });
+    });
+  }, [findings, reviews]);
 
   const fail = (e: { message: string } | null): WriteResult => (e ? { ok: false, error: e.message } : { ok: true });
 
@@ -139,6 +156,16 @@ export function useBoard(enabled: boolean, meId: string | null) {
   // Invitation only: once loaded, a signed-in person without an active profile (not invited, or access removed) sees nothing.
   const accessDenied = loaded && !error && !!meId && !(profiles.get(meId)?.active ?? false);
 
+  /** People a finding can be assigned to: active members, engineers first. */
+  const assignable = useMemo(() => [...profiles.values()].filter((p) => p.active !== false).sort((a, b) => (a.role === 'engineer' ? 0 : 1) - (b.role === 'engineer' ? 0 : 1) || (a.name || a.email).localeCompare(b.name || b.email)), [profiles]);
+  const assign = useCallback(async (ids: string[], assignee: string | null): Promise<WriteResult> => {
+    const t = nowIso();
+    const patch = { assignee, assigned_by: assignee ? meId : null, assigned_at: assignee ? t : null, updated_at: t };
+    setFindings((m) => { const n = new Map(m); ids.forEach((id) => { const f = n.get(id); if (f) n.set(id, { ...f, ...patch }); }); return n; });
+    const { error: e } = await supabase.from('findings').update(patch).in('id', ids);
+    return fail(e);
+  }, [meId]);
+
   const setActive = useCallback(async (profileId: string, active: boolean): Promise<WriteResult> => {
     const { error: e } = await supabase.from('profiles').update({ active }).eq('id', profileId);
     if (!e) setProfiles((m) => { const p = m.get(profileId); return p ? new Map(m).set(profileId, { ...p, active }) : m; });
@@ -163,8 +190,8 @@ export function useBoard(enabled: boolean, meId: string | null) {
     return fail(e);
   }, []);
 
-  return useMemo(() => ({ reviews, findings, profiles, apps, loaded, error, role, isUx, isAdmin, accessDenied, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot, setRole, setActive, listAssignments, assignRole, removeAssignment }),
-    [reviews, findings, profiles, apps, loaded, error, role, isUx, isAdmin, accessDenied, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot, setRole, setActive, listAssignments, assignRole, removeAssignment]);
+  return useMemo(() => ({ reviews, findings, profiles, apps, loaded, error, role, isUx, isAdmin, accessDenied, assignable, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot, assign, setRole, setActive, listAssignments, assignRole, removeAssignment }),
+    [reviews, findings, profiles, apps, loaded, error, role, isUx, isAdmin, accessDenied, assignable, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot, assign, setRole, setActive, listAssignments, assignRole, removeAssignment]);
 }
 export type Board = ReturnType<typeof useBoard>;
 

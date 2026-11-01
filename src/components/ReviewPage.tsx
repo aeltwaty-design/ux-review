@@ -109,8 +109,14 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
           <input className="search" type="search" id="f-search" placeholder="Search code, screen, text" value={query} onChange={(e) => setQuery(e.target.value)} dir="auto" />
           <select className="ctl" id="f-sort" value={sort} onChange={(e) => setSort(e.target.value as 'flow' | 'sev')}><option value="flow">Order: flow</option><option value="sev">Order: severity</option></select>
           {ux && <button type="button" className="btn" onClick={() => onAddFinding(r.id)}>Add finding</button>}
+          {ux && all.some((f) => f.state === 'open' && !f.assignee) && (
+            <select className="ctl" id="assign-all" value="" aria-label="Assign all open, unassigned findings" onChange={async (e) => { const id = e.target.value; if (!id) return; const ids = all.filter((f) => f.state === 'open' && !f.assignee).map((f) => f.id); const res = await board.assign(ids, id); toast(res.ok ? `Assigned ${ids.length} findings.` : 'Could not assign: ' + res.error); }}>
+              <option value="">Assign all open, unassigned to…</option>
+              {board.assignable.map((p) => <option key={p.id} value={p.id}>{p.name || p.email}</option>)}
+            </select>
+          )}
         </div>
-        <p className="hint" style={{ margin: '-6px 0 10px' }}>Screenshots: mask names, phone numbers and emails before uploading.</p>
+        <p className="hint" style={{ margin: '-6px 0 10px' }}>{ux ? 'Engineers see only the findings assigned to them. Screenshots: mask names, phone numbers and emails before uploading.' : 'Screenshots: mask names, phone numbers and emails before uploading.'}</p>
         {all.length === 0 ? (
           <div className="empty"><h3>No findings yet</h3>{r.status === 'requested' || r.status === 'in_progress' ? 'The reviewer adds findings here when the review is done.' : 'Nothing was recorded for this review.'}</div>
         ) : list.length === 0 ? (

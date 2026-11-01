@@ -11,6 +11,7 @@ import { ReviewPage } from './components/ReviewPage';
 import { RequestForm } from './components/RequestForm';
 import { FindingForm } from './components/FindingForm';
 import { Lightbox } from './components/Lightbox';
+import { MyIssues } from './components/MyIssues';
 import { PeoplePanel } from './components/PeoplePanel';
 import { ToastContext, useToastState } from './components/Toast';
 
@@ -61,7 +62,7 @@ export function App() {
 
   return (
     <ToastContext.Provider value={toastState.toast}>
-      <TopBar user={auth.user} profile={meId ? board.profiles.get(meId) ?? null : null} onNew={() => setPanel({ kind: 'request' })} onPeople={board.isAdmin ? () => setPanel({ kind: 'people' }) : undefined} onSignOut={auth.signOut} />
+      <TopBar user={auth.user} profile={meId ? board.profiles.get(meId) ?? null : null} canRequest={board.isUx} onNew={() => setPanel({ kind: 'request' })} onPeople={board.isAdmin ? () => setPanel({ kind: 'people' }) : undefined} onSignOut={auth.signOut} />
       {!auth.ready ? null : !auth.session ? (
         <SignIn onSignIn={auth.signIn} error={auth.authError} />
       ) : board.accessDenied ? (
@@ -70,6 +71,11 @@ export function App() {
           <p>UX Reviews is invitation only. Ask an admin to invite your walaplus.com address, then sign in again.</p>
           <button className="btn" type="button" onClick={auth.signOut}>Sign out</button>
         </div></div>
+      ) : !board.isUx ? (
+        <div className="wrap">
+          {board.error && <div className="note-bar" style={{ marginBottom: 12 }}>The board could not load: {board.error}. Reload the page.</div>}
+          <MyIssues board={board} meId={meId} onOpenImage={(src, cap) => setLightbox({ src, cap })} />
+        </div>
       ) : (
         <div className="wrap">
           {board.error && <div className="note-bar" style={{ marginBottom: 12 }}>The board could not load: {board.error}. Reload the page.</div>}

@@ -1,16 +1,16 @@
 import type { User } from '@supabase/supabase-js';
 import { ROLES, type Profile } from '../lib/types';
 
-export function TopBar({ user, profile, onNew, onPeople, onSignOut }: { user: User | null; profile: Profile | null; onNew: () => void; onPeople?: () => void; onSignOut: () => void }) {
+export function TopBar({ user, profile, canRequest, onNew, onPeople, onSignOut }: { user: User | null; profile: Profile | null; canRequest: boolean; onNew: () => void; onPeople?: () => void; onSignOut: () => void }) {
   const name = profile?.name || user?.user_metadata?.full_name || user?.email || '';
   const avatar = profile?.avatar_url || user?.user_metadata?.avatar_url || '';
   return (
     <header className="top"><div className="top-in">
       <div className="brand"><span className="eyebrow">Engineering ↔ UX · all apps</span><h1>UX Reviews</h1></div>
       <nav>
-        {user && <a className="btn" href="#queue">Queue</a>}
+        {user && canRequest && <a className="btn" href="#queue">Queue</a>}
         {user && onPeople && <button className="btn" type="button" onClick={onPeople}>People</button>}
-        {user && <button className="btn primary" type="button" onClick={onNew}>Request a review</button>}
+        {user && canRequest && <button className="btn primary" type="button" onClick={onNew}>Request a review</button>}
         {user && (
           <span className="me">{avatar ? <img src={avatar} alt="" referrerPolicy="no-referrer" /> : null}<span>{name}</span>
             {profile && <span className="chip type" title="Your role on this board">{ROLES[profile.role] ?? profile.role}</span>}
