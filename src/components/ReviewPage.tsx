@@ -83,7 +83,15 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
         </div>
       </div>
       <dl className="meta">
-        {dd('Reviewer', <>{board.nameOf(r.reviewer, r.reviewer_label)}{r.started_at && <> · started {fmtDate(r.started_at)}</>}</>)}
+        {board.isAdmin ? (
+          <div><dt><label htmlFor={'reviewer-' + r.id}>Reviewer</label></dt><dd>
+            <select className="ctl" id={'reviewer-' + r.id} value={r.reviewer ?? ''} onChange={async (e) => { const id = e.target.value || null; const res = await board.updateReview(r.id, { reviewer: id, reviewer_label: id ? null : r.reviewer_label }); toast(res.ok ? (id ? 'Reviewer set to ' + board.nameOf(id, null) + '.' : 'Reviewer cleared.') : 'Could not save: ' + res.error); }}>
+              <option value="">{r.reviewer_label || '— not assigned —'}</option>
+              {board.assignable.filter((p) => p.role === 'ux' || p.role === 'admin').map((p) => <option key={p.id} value={p.id}>{p.name || p.email}</option>)}
+            </select>
+            {r.started_at && <span className="hint"> · started {fmtDate(r.started_at)}</span>}
+          </dd></div>
+        ) : dd('Reviewer', <>{board.nameOf(r.reviewer, r.reviewer_label)}{r.started_at && <> · started {fmtDate(r.started_at)}</>}</>)}
         {dd('Delivered', r.delivered_at ? `${fmtDate(r.delivered_at)} · ${st.total} findings` : r.status === 'requested' ? 'not started' : 'in progress')}
         {dd('Closed', r.closed_at ? fmtDate(r.closed_at) : '')}
         {dd('Build', r.build && <Md text={r.build} />)}
