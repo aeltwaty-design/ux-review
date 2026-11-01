@@ -43,6 +43,8 @@ export function FindingRow({ f, board, meId, onEdit, onOpenImage }: { f: Finding
     if (fileRef.current) fileRef.current.value = '';
   };
 
+  const ro = !board.canWork(f); // read-only for UX members who are not this review's reviewer
+  const canEdit = board.canEditIn(f.review_id);
   const setAssignee = async (id: string) => { const res = await board.assign([f.id], id || null); toast(res.ok ? (id ? 'Assigned.' : 'Unassigned.') : 'Could not assign: ' + res.error); };
   const meta = [
     st !== 'open' && (f.state_by || f.state_at || f.state_label) ? `${FSTATE[st]} by ${board.nameOf(f.state_by, f.state_label)}${f.state_at ? ' · ' + fmtDate(f.state_at) : ''}` : '',
@@ -52,7 +54,7 @@ export function FindingRow({ f, board, meId, onEdit, onOpenImage }: { f: Finding
 
   return (
     <article className={`fnd sev-${f.sev} fs-${st}`} id={'fr-' + f.id}>
-      <label className="fcheck"><input type="checkbox" checked={st === 'solved'} onChange={(e) => setState(e.target.checked ? 'solved' : 'open')} /><span>Solved</span></label>
+      <label className="fcheck"><input type="checkbox" checked={st === 'solved'} disabled={ro} onChange={(e) => setState(e.target.checked ? 'solved' : 'open')} /><span>Solved</span></label>
       <div className="fbody">
         <div className="fhead">
           <span className="code">{f.code}</span><span className={`chip sev-${f.sev}`}>{SEV[f.sev]}</span>
@@ -69,27 +71,28 @@ export function FindingRow({ f, board, meId, onEdit, onOpenImage }: { f: Finding
         <div className="fdesc" dir="auto"><Md text={f.description} /></div>
         {(f.prod || f.figma) && <div className="frefs">{[f.prod && 'Prod: ' + f.prod, f.figma && 'Figma: ' + f.figma].filter(Boolean).join(' · ')}</div>}
         <div className="shots">
-          {(f.images || []).map((im, i) => <Shot key={im.path} im={im} index={i} f={f} board={board} meId={meId} onOpen={onOpenImage} />)}
-          <span className="upl">
+          {(f.images || []).map((im, i) => <Shot key={im.path} im={im} index={i} f={f} board={board} meId={meId} ro={ro} canEdit={canEdit} onOpen={onOpenImage} />)}
+          {!ro && <span className="upl">
             <button type="button" className="btn sm" disabled={uploading} onClick={() => fileRef.current?.click()}>{uploading ? 'Uploading…' : f.images?.length ? 'Add image' : 'Add screenshot'}</button>
             <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onChange={(e) => upload(e.target.files)} />
-          </span>
+          </span>}
         </div>
+        {ro ? (f.note ? <div className="fctl"><span className="hint" dir="auto">Note: {f.note}</span></div> : null) : (
         <div className="fctl">
           <select className="ctl" value={st} onChange={(e) => setState(e.target.value as FState)}>{(Object.keys(FSTATE) as FState[]).map((k) => <option key={k} value={k}>{FSTATE[k]}</option>)}</select>
           <textarea rows={1} value={note} placeholder="Note for the reviewer, e.g. why it stays open" dir="auto" onChange={(e) => onNote(e.target.value)} onBlur={(e) => { window.clearTimeout(noteTimer.current); saveNote(e.target.value); }} />
-          {board.isUx && <button type="button" className="btn sm" onClick={() => onEdit(f)}>Edit</button>}
-          {board.isUx && (confirmDel ? (
+          {canEdit && <button type="button" className="btn sm" onClick={() => onEdit(f)}>Edit</button>}
+          {canEdit && (confirmDel ? (
             <span className="confirm">Delete this finding? <button type="button" className="btn sm danger" onClick={del}>Delete</button><button type="button" className="btn sm" onClick={() => setConfirmDel(false)}>Keep</button></span>
           ) : <button type="button" className="btn sm" onClick={() => setConfirmDel(true)}>Delete</button>)}
-        </div>
+        </div>)}
         {meta && <div className="fmeta">{meta}</div>}
       </div>
     </article>
   );
 }
 
-function Shot({ im, index, f, board, meId, onOpen }: { im: ShotRef; index: number; f: Finding; board: Board; meId: string | null; onOpen: (src: string, cap: string) => void }) {
+function Shot({ im, index, f, board, meId, ro, canEdit, onOpen }: { im: ShotRef; index: number; f: Finding; board: Board; meId: string | null; ro: boolean; canEdit: boolean; onOpen: (src: string, cap: string) => void }) {
   const toast = useToast();
   const url = useSignedUrl(im.path);
   const [missing, setMissing] = useState(false);
@@ -105,7 +108,7 @@ function Shot({ im, index, f, board, meId, onOpen }: { im: ShotRef; index: numbe
       </button>
       {confirm ? (
         <span className="confirm" style={{ position: 'absolute', left: 0, top: 0, zIndex: 2 }}>Remove? <button type="button" className="btn sm danger" onClick={remove}>Remove</button><button type="button" className="btn sm" onClick={() => setConfirm(false)}>Keep</button></span>
-      ) : (im.by === meId || !im.by) && <button type="button" className="shot-x" title="Remove image" aria-label="Remove image" onClick={() => setConfirm(true)}>×</button>}
+      ) : !ro && (im.by === meId || !im.by || canEdit) && <button type="button" className="shot-x" title="Remove image" aria-label="Remove image" onClick={() => setConfirm(true)}>×</button>}
     </span>
   );
 }

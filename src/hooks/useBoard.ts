@@ -160,8 +160,12 @@ export function useBoard(enabled: boolean, meId: string | null) {
   const isPo = role === 'product_owner';
   const isPending = role === 'pending';
   const myApps = useMemo(() => (meId && profileApps.get(meId)) || [], [profileApps, meId]);
-  /** May this person assign findings of this review? UX/admin anywhere; a product owner on their own products. */
-  const canAssignIn = useCallback((reviewId: string) => isUx || (isPo && myApps.includes(reviews.get(reviewId)?.app_id ?? '')), [isUx, isPo, myApps, reviews]);
+  /** May this person change the review and write its findings? Admins anywhere; a UX member only where they are the assigned reviewer. */
+  const canEditIn = useCallback((reviewId: string) => isAdmin || (isUx && !!meId && reviews.get(reviewId)?.reviewer === meId), [isAdmin, isUx, meId, reviews]);
+  /** May this person assign findings of this review? Editors of the review, and a product owner on their own products. */
+  const canAssignIn = useCallback((reviewId: string) => canEditIn(reviewId) || (isPo && myApps.includes(reviews.get(reviewId)?.app_id ?? '')), [canEditIn, isPo, myApps, reviews]);
+  /** May this person work a finding (state, note, screenshots)? Editors, the product owner, or its assignee. */
+  const canWork = useCallback((f: Finding) => canAssignIn(f.review_id) || (!!meId && f.assignee === meId), [canAssignIn, meId]);
 
   const setProfileAppIds = useCallback(async (profileId: string, appIds: string[]): Promise<WriteResult> => {
     const del = await supabase.from('profile_apps').delete().eq('profile_id', profileId);
@@ -214,8 +218,8 @@ export function useBoard(enabled: boolean, meId: string | null) {
     return fail(e);
   }, []);
 
-  return useMemo(() => ({ reviews, findings, profiles, apps, profileApps, myApps, loaded, error, role, isUx, isAdmin, isPo, isPending, canAssignIn, accessDenied, assignable, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot, assign, setRole, setActive, setProfileAppIds, listAssignments, assignRole, invite, removeAssignment }),
-    [reviews, findings, profiles, apps, profileApps, myApps, loaded, error, role, isUx, isAdmin, isPo, isPending, canAssignIn, accessDenied, assignable, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot, assign, setRole, setActive, setProfileAppIds, listAssignments, assignRole, invite, removeAssignment]);
+  return useMemo(() => ({ reviews, findings, profiles, apps, profileApps, myApps, loaded, error, role, isUx, isAdmin, isPo, isPending, canEditIn, canAssignIn, canWork, accessDenied, assignable, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot, assign, setRole, setActive, setProfileAppIds, listAssignments, assignRole, invite, removeAssignment }),
+    [reviews, findings, profiles, apps, profileApps, myApps, loaded, error, role, isUx, isAdmin, isPo, isPending, canEditIn, canAssignIn, canWork, accessDenied, assignable, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot, assign, setRole, setActive, setProfileAppIds, listAssignments, assignRole, invite, removeAssignment]);
 }
 
 function groupApps(rows: ProfileApp[]): Map<string, string[]> {

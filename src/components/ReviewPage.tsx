@@ -62,9 +62,9 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
   const canAssign = board.canAssignIn(r.id);
   // Who may move the status where: admins anywhere; the UX team and product owners (of this product) up to Delivered;
   // closing and reopening are the admin's. Enforced again by the guard_review_update trigger.
-  const mine = ux && !!meId && r.reviewer === meId; // the assigned reviewer has admin controls on this review, except close/withdraw
-  const canEdit = board.isAdmin || mine;
-  const canMove = ux || (board.isPo && board.myApps.includes(r.app_id));
+  // Admins, and the assigned reviewer, edit the review and its findings (never close/withdraw unless admin); other UX members only read.
+  const canEdit = board.canEditIn(r.id);
+  const canMove = canEdit || (board.isPo && board.myApps.includes(r.app_id));
   const stages = (Object.keys(STATUS) as Status[]).filter((k) => k !== 'done' || board.isAdmin);
   const closed = r.status === 'done' && !board.isAdmin;
 
@@ -81,6 +81,8 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
           <CopyLink id={r.id} />
           {confirmWithdraw ? (
             <span className="confirm">Withdraw this request? <button type="button" className="btn sm danger" onClick={withdraw}>Withdraw</button><button type="button" className="btn sm" onClick={() => setConfirmWithdraw(false)}>Keep</button></span>
+          ) : ux && !canMove ? (
+            <span className="hint">{r.reviewer ? `${board.nameOf(r.reviewer, r.reviewer_label)} is the reviewer; only the reviewer or an admin edits this review.` : 'No reviewer yet; an admin assigns one.'}</span>
           ) : canMove ? (
             <>
               <select className="btn primary status-cta" value={r.status} disabled={closed} aria-label="Review status" title={closed ? 'Closed. Only an admin can reopen a review.' : board.isAdmin ? 'Move the review to any stage, forward or back' : 'Move the review up to Delivered; an admin closes it'} onChange={(e) => setStatus(e.target.value as Status)}>
@@ -128,7 +130,7 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
           <div className="chips">{[3, 2, 1].map((s) => <button key={s} type="button" className="fchip" aria-pressed={sevF.has(s)} onClick={() => setSevF((prev) => { const n = new Set(prev); if (n.has(s)) n.delete(s); else n.add(s); return n; })}>{SEV[s as 1 | 2 | 3]}</button>)}</div>
           <input className="search" type="search" id="f-search" placeholder="Search code, screen, text" value={query} onChange={(e) => setQuery(e.target.value)} dir="auto" />
           <select className="ctl" id="f-sort" value={sort} onChange={(e) => setSort(e.target.value as 'flow' | 'sev')}><option value="flow">Order: flow</option><option value="sev">Order: severity</option></select>
-          {ux && <button type="button" className="btn" onClick={() => onAddFinding(r.id)}>Add finding</button>}
+          {canEdit && <button type="button" className="btn" onClick={() => onAddFinding(r.id)}>Add finding</button>}
           {canAssign && all.some((f) => f.state === 'open' && !f.assignee) && (
             <select className="ctl" id="assign-all" value="" aria-label="Assign all open, unassigned findings" onChange={async (e) => { const id = e.target.value; if (!id) return; const ids = all.filter((f) => f.state === 'open' && !f.assignee).map((f) => f.id); const res = await board.assign(ids, id); toast(res.ok ? `Assigned ${ids.length} findings.` : 'Could not assign: ' + res.error); }}>
               <option value="">Assign all open, unassigned to…</option>
