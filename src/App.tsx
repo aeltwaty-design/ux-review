@@ -46,18 +46,17 @@ export function App() {
 
   const openReview = useMemo(() => (hash && hash !== 'queue' ? board.reviews.get(hash) ?? null : null), [hash, board.reviews]);
   const missing = hash && hash !== 'queue' && board.loaded && !openReview ? hash : null;
-  // A review link opened by someone whose board does not carry that review (pending, collaborator, product owner of another
-  // product) is served read-only through review_by_link. UX and admins see every review, so for them a miss is a miss.
-  const linkId = missing && !board.isUx ? missing : null;
+  // A review link opened by someone whose board does not carry that review (pending, or a viewer/editor of another team)
+  // is served read-only through review_by_link. Admins see every review, so for them a miss is a miss.
+  const linkId = missing && !board.isAdmin ? missing : null;
   const closePanel = useCallback(() => setPanel(null), []);
 
   // App filter (All / WalaPlus / WalaOne / Doam …) scopes the KPIs, charts and queue; remembered per browser.
   const [appFilter, setAppFilterState] = useState<string>(() => { try { return localStorage.getItem('uxr-app') || 'all'; } catch { return 'all'; } });
   const setAppFilter = (id: string) => { setAppFilterState(id); try { localStorage.setItem('uxr-app', id); } catch { /* storage unavailable */ } };
-  // A product owner's board covers only their products; the chips offer only those.
-  const visibleApps = useMemo(() => (board.isPo ? board.apps.filter((a) => board.myApps.includes(a.id)) : board.apps), [board.apps, board.isPo, board.myApps]);
+  const visibleApps = board.apps;
   const scoped = useMemo(() => {
-    const ids = visibleApps.some((a) => a.id === appFilter) ? [appFilter] : board.isPo ? board.myApps : null;
+    const ids = visibleApps.some((a) => a.id === appFilter) ? [appFilter] : null;
     if (!ids) return board;
     const reviews = new Map([...board.reviews].filter(([, r]) => ids.includes(r.app_id)));
     const findings = new Map([...board.findings].filter(([, f]) => reviews.has(f.review_id)));
@@ -70,7 +69,7 @@ export function App() {
 
   return (
     <ToastContext.Provider value={toastState.toast}>
-      <TopBar user={auth.user} profile={meId ? board.profiles.get(meId) ?? null : null} canRequest={board.isUx} showQueue={board.isUx || board.isPo} onNew={() => setPanel({ kind: 'request' })} onPeople={board.isAdmin ? () => setPanel({ kind: 'people' }) : undefined} onInvite={!board.isAdmin && !board.isPending && !board.accessDenied && board.loaded ? () => setPanel({ kind: 'invite' }) : undefined} onSignOut={auth.signOut} />
+      <TopBar user={auth.user} profile={meId ? board.profiles.get(meId) ?? null : null} canRequest={board.isAdmin} showQueue={board.isAdmin} onNew={() => setPanel({ kind: 'request' })} onPeople={board.isAdmin ? () => setPanel({ kind: 'people' }) : undefined} onInvite={!board.isAdmin && !board.isPending && !board.accessDenied && board.loaded ? () => setPanel({ kind: 'invite' }) : undefined} onSignOut={auth.signOut} />
       {!auth.ready ? null : !auth.session ? (
         <SignIn onSignIn={auth.signIn} error={auth.authError} />
       ) : board.accessDenied ? (
@@ -89,7 +88,7 @@ export function App() {
           <p>Your account is signed in but not approved yet. An admin will approve it and set your role; this page updates by itself when that happens. Review links shared with you already open.</p>
           <button className="btn" type="button" onClick={auth.signOut}>Sign out</button>
         </div></div>
-      ) : !board.isUx && !board.isPo ? (
+      ) : !board.isAdmin ? (
         <div className="wrap">
           {board.error && <div className="note-bar" style={{ marginBottom: 12 }}>The board could not load: {board.error}. Reload the page.</div>}
           <TeamInbox board={board} meId={meId} onOpenImage={(src, cap) => setLightbox({ src, cap })} />
@@ -97,10 +96,9 @@ export function App() {
       ) : (
         <div className="wrap">
           {board.error && <div className="note-bar" style={{ marginBottom: 12 }}>The board could not load: {board.error}. Reload the page.</div>}
-          {board.isPo && visibleApps.length === 0 && <div className="note-bar" style={{ marginBottom: 12 }}>No product is assigned to you yet. Ask an admin to add your products under People.</div>}
           {visibleApps.length > 1 && (
             <div className="chips apps" role="group" aria-label="App">
-              <button type="button" className="fchip" aria-pressed={!visibleApps.some((a) => a.id === appFilter)} onClick={() => setAppFilter('all')}>{board.isPo ? 'All my products' : 'All apps'}</button>
+              <button type="button" className="fchip" aria-pressed={!visibleApps.some((a) => a.id === appFilter)} onClick={() => setAppFilter('all')}>All apps</button>
               {visibleApps.map((a) => <button key={a.id} type="button" className="fchip" aria-pressed={appFilter === a.id} onClick={() => setAppFilter(a.id)}>{a.name}</button>)}
             </div>
           )}

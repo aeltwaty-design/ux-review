@@ -2,10 +2,10 @@ export type Status = 'requested' | 'in_progress' | 'delivered' | 'done';
 export type FState = 'open' | 'solved' | 'wontfix' | 'design';
 export type Sev = 1 | 2 | 3;
 
-export type Role = 'pending' | 'collaborator' | 'product_owner' | 'ux' | 'admin';
-export const ROLES: Record<Role, string> = { pending: 'Waiting admin approval', collaborator: 'Collaborator', product_owner: 'Product Owner', ux: 'UX team', admin: 'Admin' };
+export type Role = 'pending' | 'viewer' | 'editor' | 'admin';
+export const ROLES: Record<Role, string> = { pending: 'Waiting admin approval', viewer: 'Viewer', editor: 'Editor', admin: 'Admin' };
 /** Roles an admin can grant; `pending` is the state before approval. */
-export const GRANTABLE_ROLES: Exclude<Role, 'pending'>[] = ['collaborator', 'product_owner', 'ux', 'admin'];
+export const GRANTABLE_ROLES: Exclude<Role, 'pending'>[] = ['viewer', 'editor', 'admin'];
 
 /** A team that owns findings: Engineering, Data, Marketing, Marketplace, Customer support, Customer success, Business, Management, Design. */
 export interface Team {
@@ -27,18 +27,12 @@ export interface Profile {
 export interface RoleAssignment {
   email: string;
   role: Role;
-  apps: string[];
   created_at: string;
   team_id: string | null;
   invited_by: string | null;
   approved: boolean;
   approved_by: string | null;
   approved_at: string | null;
-}
-
-export interface ProfileApp {
-  profile_id: string;
-  app_id: string;
 }
 
 export interface AppDef {

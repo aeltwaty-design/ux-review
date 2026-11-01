@@ -62,13 +62,13 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
   const teamsHere = (() => { const c = new Map<string, number>(); all.forEach((f) => { const k = f.team_id ?? ''; c.set(k, (c.get(k) || 0) + (f.state === 'open' ? 1 : 0)); }); return [...c].sort((a, b) => b[1] - a[1]); })();
   const link = (u: string) => <a href={u} target="_blank" rel="noopener noreferrer">{u.replace(/^https?:\/\//, '').slice(0, 60)}{u.length > 68 ? '…' : ''}</a>;
   const dd = (label: string, v: React.ReactNode, wide = false) => (v ? <div className={wide ? 'wide' : undefined}><dt>{label}</dt><dd>{v}</dd></div> : null);
-  const ux = board.isUx;
-  const canAssign = board.canAssignIn(r.id);
-  // Who may move the status where: admins anywhere; the UX team and product owners (of this product) up to Delivered;
+  const ux = board.isAdmin;
+  const canAssign = board.isAdmin;
+  // Admins move the status anywhere (this page is theirs; editors and viewers work from the team inbox);
   // closing and reopening are the admin's. Enforced again by the guard_review_update trigger.
   // Admins, and the assigned reviewer, edit the review and its findings (never close/withdraw unless admin); other UX members only read.
-  const canEdit = board.canEditIn(r.id);
-  const canMove = canEdit || (board.isPo && board.myApps.includes(r.app_id));
+  const canEdit = board.isAdmin;
+  const canMove = board.isAdmin;
   const stages = (Object.keys(STATUS) as Status[]).filter((k) => k !== 'done' || board.isAdmin);
   const closed = r.status === 'done' && !board.isAdmin;
 
@@ -85,8 +85,6 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
           <CopyLink id={r.id} />
           {confirmWithdraw ? (
             <span className="confirm">Withdraw this request? <button type="button" className="btn sm danger" onClick={withdraw}>Withdraw</button><button type="button" className="btn sm" onClick={() => setConfirmWithdraw(false)}>Keep</button></span>
-          ) : ux && !canMove ? (
-            <span className="hint">{r.reviewer ? `${board.nameOf(r.reviewer, r.reviewer_label)} is the reviewer; only the reviewer or an admin edits this review.` : 'No reviewer yet; an admin assigns one.'}</span>
           ) : canMove ? (
             <>
               <select className="btn primary status-cta" value={r.status} disabled={closed} aria-label="Review status" title={closed ? 'Closed. Only an admin can reopen a review.' : board.isAdmin ? 'Move the review to any stage, forward or back' : 'Move the review up to Delivered; an admin closes it'} onChange={(e) => setStatus(e.target.value as Status)}>
@@ -98,7 +96,7 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
             </>
           ) : r.status === 'requested' ? <span className="hint">Waiting for the UX team to start the review.</span>
             : r.status === 'in_progress' ? <span className="hint">The UX team is reviewing.</span>
-            : r.status === 'delivered' ? <span className="hint">{canAssign ? 'Assign each finding to a collaborator below; the UX team closes the review.' : 'Tick each finding Solved as you fix it; the UX team closes the review.'}</span>
+            : r.status === 'delivered' ? <span className="hint">{canAssign ? 'Route each finding to its team below; an admin closes the review.' : 'Tick each finding Solved as you fix it; the UX team closes the review.'}</span>
             : null}
         </div>
       </div>
@@ -107,7 +105,7 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
           <div><dt><label htmlFor={'reviewer-' + r.id}>Reviewer</label></dt><dd>
             <select className="ctl" id={'reviewer-' + r.id} value={r.reviewer ?? ''} onChange={async (e) => { const id = e.target.value || null; const res = await board.updateReview(r.id, { reviewer: id, reviewer_label: id ? null : r.reviewer_label }); toast(res.ok ? (id ? 'Reviewer set to ' + board.nameOf(id, null) + '.' : 'Reviewer cleared.') : 'Could not save: ' + res.error); }}>
               <option value="">{r.reviewer_label || '— not assigned —'}</option>
-              {board.assignable.filter((p) => p.role === 'ux' || p.role === 'admin').map((p) => <option key={p.id} value={p.id}>{p.name || p.email}</option>)}
+              {board.assignable.filter((p) => p.role === 'admin').map((p) => <option key={p.id} value={p.id}>{p.name || p.email}</option>)}
             </select>
             {r.started_at && <span className="hint"> · started {fmtDate(r.started_at)}</span>}
           </dd></div>
@@ -149,7 +147,7 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
             </select>
           )}
         </div>
-        <p className="hint" style={{ margin: '-6px 0 10px' }}>{canAssign ? 'Route each finding to the team that owns it; collaborators see every finding of their team and take or get assigned the ones to fix. Screenshots: mask names, phone numbers and emails before uploading.' : 'Screenshots: mask names, phone numbers and emails before uploading.'}</p>
+        <p className="hint" style={{ margin: '-6px 0 10px' }}>{canAssign ? 'Route each finding to the team that owns it; editors see every finding of their team and take or get assigned the ones to fix, viewers only read. Screenshots: mask names, phone numbers and emails before uploading.' : 'Screenshots: mask names, phone numbers and emails before uploading.'}</p>
         {all.length === 0 ? (
           <div className="empty"><h3>No findings yet</h3>{r.status === 'requested' || r.status === 'in_progress' ? 'The reviewer adds findings here when the review is done.' : 'Nothing was recorded for this review.'}</div>
         ) : list.length === 0 ? (

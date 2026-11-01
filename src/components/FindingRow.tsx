@@ -44,12 +44,12 @@ export function FindingRow({ f, board, meId, onEdit, onOpenImage }: { f: Finding
   };
 
   const ro = !board.canWork(f); // read-only for UX members who are not this review's reviewer
-  const canEdit = board.canEditIn(f.review_id);
+  const canEdit = board.isAdmin;
   const setAssignee = async (id: string) => { const res = await board.assign([f.id], id || null); toast(res.ok ? (id ? 'Assigned.' : 'Unassigned.') : 'Could not assign: ' + res.error); };
   const setTeam = async (id: string) => { const res = await board.setTeam([f.id], id || null); toast(res.ok ? (id ? 'Routed to ' + board.teamName(id) + '.' : 'Team cleared.') : 'Could not route: ' + res.error); };
   const take = async () => { const res = await board.take(f); toast(res.ok ? 'It is yours.' : 'Could not take it: ' + res.error); };
   const release = async () => { const res = await board.release(f); toast(res.ok ? 'Released to the team.' : 'Could not release: ' + res.error); };
-  const router = board.canAssignIn(f.review_id);
+  const router = board.isAdmin;
   const mine = !!meId && f.assignee === meId;
   const myTeamFinding = !!board.myTeam && f.team_id === board.myTeam;
   const meta = [

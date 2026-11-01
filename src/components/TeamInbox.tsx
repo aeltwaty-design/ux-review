@@ -8,7 +8,7 @@ import { CopyLink } from './CopyLink';
 type Scope = 'mine' | 'team';
 type Tab = 'open' | 'done' | 'all';
 
-/** A collaborator's whole board: every finding owned by their team, "Mine" selected by default, grouped by review. */
+/** An editor's or viewer's whole board: every finding owned by their team, "Mine" selected by default, grouped by review. */
 export function TeamInbox({ board, meId, onOpenImage }: { board: Board; meId: string | null; onOpenImage: (src: string, cap: string) => void }) {
   const [scope, setScope] = useState<Scope>('mine');
   const [tab, setTab] = useState<Tab>('open');
@@ -35,6 +35,7 @@ export function TeamInbox({ board, meId, onOpenImage }: { board: Board; meId: st
         {team && <div className="chips">{chip(scope === 'mine', 'Mine', mine.filter((f) => f.state === 'open').length, () => setScope('mine'))}{chip(scope === 'team', 'Whole team', teamAll.filter((f) => f.state === 'open').length, () => setScope('team'))}</div>}
         <div className="chips">{chip(tab === 'open', 'Open', open.length, () => setTab('open'))}{chip(tab === 'done', 'Done', done.length, () => setTab('done'))}{chip(tab === 'all', 'All', pool.length, () => setTab('all'))}</div>
       </div>
+      {board.isViewer && <div className="note-bar" style={{ marginBottom: 12 }}>You have view access: you can read {team ? board.teamName(team) + "'s" : 'your'} findings but not change them. Ask an admin for Editor access to work them.</div>}
       {!team && <div className="note-bar" style={{ marginBottom: 12 }}>You are not in a team yet, so only findings assigned to you personally show here. Ask an admin to set your team.</div>}
       {team && scope === 'mine' && unassigned > 0 && <div className="note-bar" style={{ marginBottom: 12 }}>{unassigned} open {unassigned === 1 ? 'finding' : 'findings'} of {board.teamName(team)} {unassigned === 1 ? 'is' : 'are'} not assigned to anyone. <button type="button" className="btn sm" onClick={() => { setScope('team'); setTab('open'); }}>See the whole team</button></div>}
       {pool.length === 0 ? (

@@ -19,7 +19,7 @@ export function Queue({ board, allApps, missing, onNew }: { board: Board; allApp
       {all.length > 0 && <QueueCharts board={board} allApps={allApps} />}
       <div className="toolbar"><h2 style={{ fontSize: 18, marginRight: 6 }}>Review queue</h2><div className="chips">{chip('active', 'Active')}{chip('closed', 'Closed')}{chip('all', 'All')}</div></div>
       {all.length === 0 ? (
-        <div className="empty"><h3>No review requests yet</h3>{board.isUx ? <>When a flow is ready for UX review, raise the first request. The UX team is alerted on Slack.<p><button type="button" className="btn primary" onClick={onNew}>Request a review</button></p></> : 'Reviews of your products appear here once the UX team raises them.'}</div>
+        <div className="empty"><h3>No review requests yet</h3><>When a build is ready for UX review, raise the first request. The channel is alerted on Slack.<p><button type="button" className="btn primary" onClick={onNew}>Request a review</button></p></></div>
       ) : shown.length === 0 ? (
         <div className="empty">Nothing {filter === 'closed' ? 'closed' : 'active'} right now.</div>
       ) : (
