@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { BUCKET, supabase } from '../lib/supabase';
-import type { AppDef, Finding, Profile, Review, Role, RoleAssignment, ShotRef } from '../lib/types';
+import type { AppDef, Finding, Profile, ProfileApp, Review, Role, RoleAssignment, ShotRef } from '../lib/types';
 import { nowIso } from '../lib/format';
 
 type Change = { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> };
@@ -21,6 +21,7 @@ export function useBoard(enabled: boolean, meId: string | null) {
   const [findings, setFindings] = useState<Map<string, Finding>>(new Map());
   const [profiles, setProfiles] = useState<Map<string, Profile>>(new Map());
   const [apps, setApps] = useState<AppDef[]>([]);
+  const [profileApps, setProfileApps] = useState<Map<string, string[]>>(new Map()); // profile id → app ids (product owners)
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const findingsRef = useRef(findings);
@@ -30,11 +31,12 @@ export function useBoard(enabled: boolean, meId: string | null) {
     if (!enabled) return;
     let cancelled = false;
     (async () => {
-      const [r, f, p, a] = await Promise.all([
+      const [r, f, p, a, pa] = await Promise.all([
         supabase.from('reviews').select('*'),
         supabase.from('findings').select('*'),
         supabase.from('profiles').select('*'), // '*' so the app still loads before the roles migration is applied
         supabase.from('apps').select('*').order('sort_order'),
+        supabase.from('profile_apps').select('*'),
       ]);
       if (cancelled) return;
       const err = r.error || f.error || p.error || a.error;
@@ -43,12 +45,14 @@ export function useBoard(enabled: boolean, meId: string | null) {
       setFindings(new Map((f.data as Finding[]).map((x) => [x.id, x])));
       setProfiles(new Map((p.data as Profile[]).map((x) => [x.id, x])));
       setApps(a.data as AppDef[]);
+      setProfileApps(groupApps((pa.data ?? []) as ProfileApp[])); // pa.error (table not there yet) just means no product owners
       setLoaded(true);
     })();
     const ch = supabase.channel('board')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, (pl) => applyChange<Review>(setReviews, pl as unknown as Change))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'findings' }, (pl) => applyChange<Finding>(setFindings, pl as unknown as Change))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (pl) => applyChange<Profile>(setProfiles, pl as unknown as Change))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profile_apps' }, () => { supabase.from('profile_apps').select('*').then(({ data }) => { if (data) setProfileApps(groupApps(data as ProfileApp[])); }); })
       .subscribe();
     // Rows that STOP being visible to this person (a finding reassigned away from them) send no realtime event, so refresh now and then.
     const timer = window.setInterval(async () => {
@@ -153,6 +157,18 @@ export function useBoard(enabled: boolean, meId: string | null) {
   const role: Role = (meId && profiles.get(meId)?.role) || 'engineer'; // no role column yet → everyone is an engineer until 0003_roles.sql runs
   const isUx = role === 'ux' || role === 'admin';
   const isAdmin = role === 'admin';
+  const isPo = role === 'product_owner';
+  const myApps = useMemo(() => (meId && profileApps.get(meId)) || [], [profileApps, meId]);
+  /** May this person assign findings of this review? UX/admin anywhere; a product owner on their own products. */
+  const canAssignIn = useCallback((reviewId: string) => isUx || (isPo && myApps.includes(reviews.get(reviewId)?.app_id ?? '')), [isUx, isPo, myApps, reviews]);
+
+  const setProfileAppIds = useCallback(async (profileId: string, appIds: string[]): Promise<WriteResult> => {
+    const del = await supabase.from('profile_apps').delete().eq('profile_id', profileId);
+    if (del.error) return fail(del.error);
+    if (appIds.length) { const ins = await supabase.from('profile_apps').insert(appIds.map((app_id) => ({ profile_id: profileId, app_id }))); if (ins.error) return fail(ins.error); }
+    setProfileApps((m) => new Map(m).set(profileId, appIds));
+    return { ok: true };
+  }, []);
   // Invitation only: once loaded, a signed-in person without an active profile (not invited, or access removed) sees nothing.
   const accessDenied = loaded && !error && !!meId && !(profiles.get(meId)?.active ?? false);
 
@@ -181,8 +197,8 @@ export function useBoard(enabled: boolean, meId: string | null) {
     const { data } = await supabase.from('role_assignments').select('*').order('created_at');
     return (data ?? []) as RoleAssignment[];
   }, []);
-  const assignRole = useCallback(async (email: string, newRole: Role): Promise<WriteResult> => {
-    const { error: e } = await supabase.from('role_assignments').upsert({ email: email.trim().toLowerCase(), role: newRole });
+  const assignRole = useCallback(async (email: string, newRole: Role, appIds: string[] = []): Promise<WriteResult> => {
+    const { error: e } = await supabase.from('role_assignments').upsert({ email: email.trim().toLowerCase(), role: newRole, apps: appIds });
     return fail(e);
   }, []);
   const removeAssignment = useCallback(async (email: string): Promise<WriteResult> => {
@@ -190,8 +206,14 @@ export function useBoard(enabled: boolean, meId: string | null) {
     return fail(e);
   }, []);
 
-  return useMemo(() => ({ reviews, findings, profiles, apps, loaded, error, role, isUx, isAdmin, accessDenied, assignable, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot, assign, setRole, setActive, listAssignments, assignRole, removeAssignment }),
-    [reviews, findings, profiles, apps, loaded, error, role, isUx, isAdmin, accessDenied, assignable, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot, assign, setRole, setActive, listAssignments, assignRole, removeAssignment]);
+  return useMemo(() => ({ reviews, findings, profiles, apps, profileApps, myApps, loaded, error, role, isUx, isAdmin, isPo, canAssignIn, accessDenied, assignable, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot, assign, setRole, setActive, setProfileAppIds, listAssignments, assignRole, removeAssignment }),
+    [reviews, findings, profiles, apps, profileApps, myApps, loaded, error, role, isUx, isAdmin, isPo, canAssignIn, accessDenied, assignable, nameOf, appName, notify, createReview, updateReview, deleteReview, addFinding, updateFinding, deleteFinding, uploadShot, removeShot, assign, setRole, setActive, setProfileAppIds, listAssignments, assignRole, removeAssignment]);
+}
+
+function groupApps(rows: ProfileApp[]): Map<string, string[]> {
+  const m = new Map<string, string[]>();
+  rows.forEach((r) => { (m.get(r.profile_id) ?? m.set(r.profile_id, []).get(r.profile_id)!).push(r.app_id); });
+  return m;
 }
 export type Board = ReturnType<typeof useBoard>;
 

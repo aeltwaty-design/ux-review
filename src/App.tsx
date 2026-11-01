@@ -49,12 +49,15 @@ export function App() {
   // App filter (All / WalaPlus / WalaOne / Doam …) scopes the KPIs, charts and queue; remembered per browser.
   const [appFilter, setAppFilterState] = useState<string>(() => { try { return localStorage.getItem('uxr-app') || 'all'; } catch { return 'all'; } });
   const setAppFilter = (id: string) => { setAppFilterState(id); try { localStorage.setItem('uxr-app', id); } catch { /* storage unavailable */ } };
+  // A product owner's board covers only their products; the chips offer only those.
+  const visibleApps = useMemo(() => (board.isPo ? board.apps.filter((a) => board.myApps.includes(a.id)) : board.apps), [board.apps, board.isPo, board.myApps]);
   const scoped = useMemo(() => {
-    if (appFilter === 'all' || !board.apps.some((a) => a.id === appFilter)) return board;
-    const reviews = new Map([...board.reviews].filter(([, r]) => r.app_id === appFilter));
+    const ids = visibleApps.some((a) => a.id === appFilter) ? [appFilter] : board.isPo ? board.myApps : null;
+    if (!ids) return board;
+    const reviews = new Map([...board.reviews].filter(([, r]) => ids.includes(r.app_id)));
     const findings = new Map([...board.findings].filter(([, f]) => reviews.has(f.review_id)));
     return { ...board, reviews, findings };
-  }, [board, appFilter]);
+  }, [board, appFilter, visibleApps]);
 
   if (!configured) {
     return <div className="signin"><div className="signin-card"><h2>UX Reviews is not configured</h2><p>Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> (see <code>.env.example</code> and the README), then rebuild.</p></div></div>;
@@ -62,7 +65,7 @@ export function App() {
 
   return (
     <ToastContext.Provider value={toastState.toast}>
-      <TopBar user={auth.user} profile={meId ? board.profiles.get(meId) ?? null : null} canRequest={board.isUx} onNew={() => setPanel({ kind: 'request' })} onPeople={board.isAdmin ? () => setPanel({ kind: 'people' }) : undefined} onSignOut={auth.signOut} />
+      <TopBar user={auth.user} profile={meId ? board.profiles.get(meId) ?? null : null} canRequest={board.isUx} showQueue={board.isUx || board.isPo} onNew={() => setPanel({ kind: 'request' })} onPeople={board.isAdmin ? () => setPanel({ kind: 'people' }) : undefined} onSignOut={auth.signOut} />
       {!auth.ready ? null : !auth.session ? (
         <SignIn onSignIn={auth.signIn} error={auth.authError} />
       ) : board.accessDenied ? (
@@ -71,7 +74,7 @@ export function App() {
           <p>UX Reviews is invitation only. Ask an admin to invite your walaplus.com address, then sign in again.</p>
           <button className="btn" type="button" onClick={auth.signOut}>Sign out</button>
         </div></div>
-      ) : !board.isUx ? (
+      ) : !board.isUx && !board.isPo ? (
         <div className="wrap">
           {board.error && <div className="note-bar" style={{ marginBottom: 12 }}>The board could not load: {board.error}. Reload the page.</div>}
           <MyIssues board={board} meId={meId} onOpenImage={(src, cap) => setLightbox({ src, cap })} />
@@ -79,10 +82,11 @@ export function App() {
       ) : (
         <div className="wrap">
           {board.error && <div className="note-bar" style={{ marginBottom: 12 }}>The board could not load: {board.error}. Reload the page.</div>}
-          {board.apps.length > 0 && (
+          {board.isPo && visibleApps.length === 0 && <div className="note-bar" style={{ marginBottom: 12 }}>No product is assigned to you yet. Ask an admin to add your products under People.</div>}
+          {visibleApps.length > 1 && (
             <div className="chips apps" role="group" aria-label="App">
-              <button type="button" className="fchip" aria-pressed={appFilter === 'all'} onClick={() => setAppFilter('all')}>All apps</button>
-              {board.apps.map((a) => <button key={a.id} type="button" className="fchip" aria-pressed={appFilter === a.id} onClick={() => setAppFilter(a.id)}>{a.name}</button>)}
+              <button type="button" className="fchip" aria-pressed={!visibleApps.some((a) => a.id === appFilter)} onClick={() => setAppFilter('all')}>{board.isPo ? 'All my products' : 'All apps'}</button>
+              {visibleApps.map((a) => <button key={a.id} type="button" className="fchip" aria-pressed={appFilter === a.id} onClick={() => setAppFilter(a.id)}>{a.name}</button>)}
             </div>
           )}
           <Kpis board={scoped} />
@@ -91,7 +95,7 @@ export function App() {
               onAddFinding={(rid) => setPanel({ kind: 'finding', reviewId: rid })} onEditFinding={(f) => setPanel({ kind: 'finding', reviewId: f.review_id, finding: f })}
               onOpenImage={(src, cap) => setLightbox({ src, cap })} />
           ) : (
-            <Queue board={scoped} allApps={appFilter === 'all'} missing={missing} onNew={() => setPanel({ kind: 'request' })} />
+            <Queue board={scoped} allApps={!visibleApps.some((a) => a.id === appFilter)} missing={missing} onNew={() => setPanel({ kind: 'request' })} />
           )}
         </div>
       )}

@@ -59,7 +59,7 @@ export function FindingRow({ f, board, meId, onEdit, onOpenImage }: { f: Finding
           {f.type && <span className="chip type">{f.type}</span>}{f.lang && <span className="chip lang">{f.lang}</span>}
           {(st === 'wontfix' || st === 'design') && <span className={'chip fs-' + st}>{FSTATE[st]}</span>}
           <span className="fscreen">{[f.flow, f.screen].filter(Boolean).join(' › ')}</span>
-          {board.isUx ? (
+          {board.canAssignIn(f.review_id) ? (
             <select className="ctl assign" value={f.assignee ?? ''} onChange={(e) => setAssignee(e.target.value)} aria-label="Assign to" title="Assign to">
               <option value="">Unassigned</option>
               {board.assignable.map((p) => <option key={p.id} value={p.id}>{p.name || p.email}</option>)}

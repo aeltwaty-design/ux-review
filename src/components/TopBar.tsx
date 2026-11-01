@@ -1,14 +1,14 @@
 import type { User } from '@supabase/supabase-js';
 import { ROLES, type Profile } from '../lib/types';
 
-export function TopBar({ user, profile, canRequest, onNew, onPeople, onSignOut }: { user: User | null; profile: Profile | null; canRequest: boolean; onNew: () => void; onPeople?: () => void; onSignOut: () => void }) {
+export function TopBar({ user, profile, canRequest, showQueue, onNew, onPeople, onSignOut }: { user: User | null; profile: Profile | null; canRequest: boolean; showQueue: boolean; onNew: () => void; onPeople?: () => void; onSignOut: () => void }) {
   const name = profile?.name || user?.user_metadata?.full_name || user?.email || '';
   const avatar = profile?.avatar_url || user?.user_metadata?.avatar_url || '';
   return (
     <header className="top"><div className="top-in">
       <div className="brand"><span className="eyebrow">Engineering ↔ UX · all apps</span><h1>UX Reviews</h1></div>
       <nav>
-        {user && canRequest && <a className="btn" href="#queue">Queue</a>}
+        {user && showQueue && <a className="btn" href="#queue">Queue</a>}
         {user && onPeople && <button className="btn" type="button" onClick={onPeople}>People</button>}
         {user && canRequest && <button className="btn primary" type="button" onClick={onNew}>Request a review</button>}
         {user && (
