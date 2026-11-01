@@ -11,7 +11,7 @@ export function Kpis({ board }: { board: Board }) {
   openF.forEach((f) => { by[f.sev] = (by[f.sev] || 0) + 1; });
   const solved = fs.filter((f) => f.state === 'solved').length;
   const pct = fs.length ? Math.round((100 * solved) / fs.length) : 0;
-  const durs = rs.map((r) => daysBetween(r.created_at, r.delivered_at)).filter((d): d is number => d != null);
+  const durs = rs.filter((r) => r.source !== 'audit').map((r) => daysBetween(r.created_at, r.delivered_at)).filter((d): d is number => d != null); // imported audits are not request cycles
   const med = median(durs);
   return (
     <section className="kpis" aria-label="Summary">

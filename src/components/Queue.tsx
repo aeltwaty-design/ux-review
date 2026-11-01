@@ -63,7 +63,7 @@ function QueueCharts({ board, allApps }: { board: Board; allApps: boolean }) {
   const withF = sortReviews(rs.filter((r) => statsFor(board.findings.values(), r.id).total > 0)).slice(0, 8);
   const progRows: Row[] = withF.map((r) => { const st = statsFor(board.findings.values(), r.id); const pct = Math.round((100 * st.solved) / st.total);
     return { label: r.flow, parts: [{ key: 'solved', v: st.solved }, { key: 'other', v: st.wontfix + st.design }, { key: 'open', v: st.open }], total: st.total, valueNode: <><b>{pct}%</b> · {st.solved}/{st.total}</> }; });
-  const turn: Row[] = rs.filter((r) => r.created_at && r.delivered_at).sort((a, b) => (b.delivered_at || '').localeCompare(a.delivered_at || '')).slice(0, 8)
+  const turn: Row[] = rs.filter((r) => r.source !== 'audit' && r.created_at && r.delivered_at).sort((a, b) => (b.delivered_at || '').localeCompare(a.delivered_at || '')).slice(0, 8)
     .map((r) => { const d = daysBetween(r.created_at, r.delivered_at) ?? 0; return { label: r.flow, parts: [{ key: 'd', v: d, text: fmtDays(d) }], total: d, valueNode: <><b>{fmtDays(d)}</b> d</> }; });
   return (
     <section className="charts" aria-label="Charts">
