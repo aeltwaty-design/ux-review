@@ -46,6 +46,12 @@ export function FindingRow({ f, board, meId, onEdit, onOpenImage }: { f: Finding
   const ro = !board.canWork(f); // read-only for UX members who are not this review's reviewer
   const canEdit = board.canEditIn(f.review_id);
   const setAssignee = async (id: string) => { const res = await board.assign([f.id], id || null); toast(res.ok ? (id ? 'Assigned.' : 'Unassigned.') : 'Could not assign: ' + res.error); };
+  const setTeam = async (id: string) => { const res = await board.setTeam([f.id], id || null); toast(res.ok ? (id ? 'Routed to ' + board.teamName(id) + '.' : 'Team cleared.') : 'Could not route: ' + res.error); };
+  const take = async () => { const res = await board.take(f); toast(res.ok ? 'It is yours.' : 'Could not take it: ' + res.error); };
+  const release = async () => { const res = await board.release(f); toast(res.ok ? 'Released to the team.' : 'Could not release: ' + res.error); };
+  const router = board.canAssignIn(f.review_id);
+  const mine = !!meId && f.assignee === meId;
+  const myTeamFinding = !!board.myTeam && f.team_id === board.myTeam;
   const meta = [
     st !== 'open' && (f.state_by || f.state_at || f.state_label) ? `${FSTATE[st]} by ${board.nameOf(f.state_by, f.state_label)}${f.state_at ? ' · ' + fmtDate(f.state_at) : ''}` : '',
     f.note && (f.note_by || f.note_label) ? `Note by ${board.nameOf(f.note_by, f.note_label)}${f.note_at ? ' · ' + fmtDate(f.note_at) : ''}` : '',
@@ -61,12 +67,25 @@ export function FindingRow({ f, board, meId, onEdit, onOpenImage }: { f: Finding
           {f.type && <span className="chip type">{f.type}</span>}{f.lang && <span className="chip lang">{f.lang}</span>}
           {(st === 'wontfix' || st === 'design') && <span className={'chip fs-' + st}>{FSTATE[st]}</span>}
           <span className="fscreen">{[f.flow, f.screen].filter(Boolean).join(' › ')}</span>
-          {board.canAssignIn(f.review_id) ? (
-            <select className="ctl assign" value={f.assignee ?? ''} onChange={(e) => setAssignee(e.target.value)} aria-label="Assign to" title="Assign to">
-              <option value="">Unassigned</option>
-              {board.assignable.map((p) => <option key={p.id} value={p.id}>{p.name || p.email}</option>)}
-            </select>
-          ) : f.assignee && f.assignee !== meId ? <span className="chip type">{board.nameOf(f.assignee)}</span> : null}
+          {router ? (
+            <>
+              <select className="ctl assign" value={f.team_id ?? ''} onChange={(e) => setTeam(e.target.value)} aria-label="Owner team" title="Owner team">
+                <option value="">No team</option>
+                {board.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+              <select className="ctl assign" value={f.assignee ?? ''} onChange={(e) => setAssignee(e.target.value)} aria-label="Assign to" title="Assign to">
+                <option value="">{f.team_id ? 'Anyone in ' + board.teamName(f.team_id) : 'Unassigned'}</option>
+                {board.assignableFor(f.team_id).map((p) => <option key={p.id} value={p.id}>{p.name || p.email}{p.team_id ? ' · ' + board.teamName(p.team_id) : ''}</option>)}
+              </select>
+            </>
+          ) : (
+            <>
+              {f.team_id && <span className="chip type" title="Owner team">{board.teamName(f.team_id)}</span>}
+              {f.assignee ? <span className="chip type">{mine ? 'Yours' : board.nameOf(f.assignee)}</span> : myTeamFinding && !ro ? <span className="chip type">Unassigned</span> : null}
+              {!f.assignee && myTeamFinding && !ro && <button type="button" className="btn sm" onClick={take}>Take it</button>}
+              {mine && myTeamFinding && <button type="button" className="btn sm" onClick={release} title="Give it back to the team">Release</button>}
+            </>
+          )}
         </div>
         <div className="fdesc" dir="auto"><Md text={f.description} /></div>
         {(f.prod || f.figma) && <div className="frefs">{[f.prod && 'Prod: ' + f.prod, f.figma && 'Figma: ' + f.figma].filter(Boolean).join(' · ')}</div>}

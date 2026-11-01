@@ -8,7 +8,7 @@ import { useToast } from './Toast';
 export function FindingForm({ reviewId, finding: f, board, meId, onClose }: { reviewId: string; finding?: Finding; board: Board; meId: string | null; onClose: () => void }) {
   const toast = useToast();
   const existing = [...board.findings.values()].filter((x) => x.review_id === reviewId);
-  const [v, setV] = useState({ code: f?.code ?? 'F-' + String(existing.length + 1).padStart(2, '0'), screen: f?.screen ?? '', type: f?.type ?? 'Copy', sev: (f?.sev ?? 2) as Sev, lang: f?.lang ?? 'Both', description: f?.description ?? '', prod: f?.prod ?? '', figma: f?.figma ?? '' });
+  const [v, setV] = useState({ code: f?.code ?? 'F-' + String(existing.length + 1).padStart(2, '0'), screen: f?.screen ?? '', type: f?.type ?? 'Copy', sev: (f?.sev ?? 2) as Sev, lang: f?.lang ?? 'Both', description: f?.description ?? '', prod: f?.prod ?? '', figma: f?.figma ?? '', team_id: f?.team_id ?? '', assignee: f?.assignee ?? '' });
   const [err, setErr] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof v, val: string | number) => setV((p) => ({ ...p, [k]: val }));
@@ -25,12 +25,14 @@ export function FindingForm({ reviewId, finding: f, board, meId, onClose }: { re
     setErr(er);
     if (Object.keys(er).length) return;
     setBusy(true);
-    const data = { screen: v.screen.trim(), type: v.type, sev: v.sev, lang: v.lang, description: v.description.trim(), prod: v.prod.trim(), figma: v.figma.trim() };
+    const assignee = v.assignee || null;
+    const routing = { team_id: v.team_id || null, assignee, ...(assignee !== (f?.assignee ?? null) ? { assigned_by: assignee ? meId : null, assigned_at: assignee ? nowIso() : null } : {}) };
+    const data = { screen: v.screen.trim(), type: v.type, sev: v.sev, lang: v.lang, description: v.description.trim(), prod: v.prod.trim(), figma: v.figma.trim(), ...routing };
     let res;
     if (f) { res = await board.updateFinding(f.id, data); if (res.ok) toast('Finding updated.'); }
     else {
       const order = Math.max(0, ...existing.map((x) => x.sort_order || 0)) + 1;
-      const row: Finding = { id, review_id: reviewId, code, flow_group: '', flow: '', ...data, state: 'open', state_by: null, state_label: null, state_at: null, note: '', note_by: null, note_label: null, note_at: null, images: [], assignee: null, assigned_by: null, assigned_at: null, created_by: meId, created_label: null, created_at: nowIso(), updated_at: nowIso(), sort_order: order, source: 'board' };
+      const row: Finding = { id, review_id: reviewId, code, flow_group: '', flow: '', ...data, state: 'open', state_by: null, state_label: null, state_at: null, note: '', note_by: null, note_label: null, note_at: null, images: [], assigned_by: assignee ? meId : null, assigned_at: assignee ? nowIso() : null, created_by: meId, created_label: null, created_at: nowIso(), updated_at: nowIso(), sort_order: order, source: 'board' };
       res = await board.addFinding(row);
       if (res.ok) toast('Finding added.');
     }
@@ -47,6 +49,8 @@ export function FindingForm({ reviewId, finding: f, board, meId, onClose }: { re
         <div className="fld"><label>Severity</label><div className="opts">{([3, 2, 1] as Sev[]).map((s) => <label key={s}><input type="radio" name="sev" checked={v.sev === s} onChange={() => set('sev', s)} />{SEV[s]}</label>)}</div></div>
         <div className="fld"><label>Language</label><div className="opts">{['AR', 'EN', 'Both'].map((l) => <label key={l}><input type="radio" name="lang" checked={v.lang === l} onChange={() => set('lang', l)} />{l}</label>)}</div></div>
         <Field name="description" label="Finding" hint="Use **bold** for emphasis and `code` for exact strings" error={err.description}><textarea id="in-description" value={v.description} onChange={(e) => set('description', e.target.value)} placeholder="What differs or fails, with exact strings and numbers" dir="auto" /></Field>
+        <div className="fld"><label htmlFor="in-team">Owner team</label><select id="in-team" value={v.team_id} onChange={(e) => set('team_id', e.target.value)}><option value="">— not routed yet —</option>{board.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
+        <div className="fld"><label htmlFor="in-assignee">Assign to</label><select id="in-assignee" value={v.assignee} onChange={(e) => set('assignee', e.target.value)}><option value="">— anyone in the team can take it —</option>{board.assignableFor(v.team_id || null).map((p) => <option key={p.id} value={p.id}>{p.name || p.email}{p.team_id ? ' · ' + board.teamName(p.team_id) : ''}</option>)}</select></div>
         <Field name="prod" label="Production refs"><input type="text" id="in-prod" value={v.prod} onChange={(e) => set('prod', e.target.value)} placeholder="Capture names, e.g. ar/12, en/12" dir="ltr" /></Field>
         <Field name="figma" label="Figma refs"><input type="text" id="in-figma" value={v.figma} onChange={(e) => set('figma', e.target.value)} placeholder="Node ids, e.g. 2389:70378" dir="ltr" /></Field>
         {!f && <p className="hint">Screenshots can be added on the finding after it is saved.</p>}

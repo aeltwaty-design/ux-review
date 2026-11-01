@@ -60,6 +60,12 @@ function QueueCharts({ board, allApps }: { board: Board; allApps: boolean }) {
     const k = allApps ? board.appName(r?.app_id) || 'Other' : f.flow_group || r?.flow || 'Other';
     (byFlow[k] ??= {})[String(f.sev)] = (byFlow[k][String(f.sev)] || 0) + 1;
   }
+  const byTeam: Record<string, Record<string, number>> = {};
+  for (const f of board.findings.values()) {
+    if (f.state !== 'open' || !active.has(f.review_id)) continue;
+    const k = f.team_id ? board.teamName(f.team_id) : 'Not routed';
+    (byTeam[k] ??= {})[String(f.sev)] = (byTeam[k][String(f.sev)] || 0) + 1;
+  }
   const withF = sortReviews(rs.filter((r) => statsFor(board.findings.values(), r.id).total > 0)).slice(0, 8);
   const progRows: Row[] = withF.map((r) => { const st = statsFor(board.findings.values(), r.id); const pct = Math.round((100 * st.solved) / st.total);
     return { label: r.flow, parts: [{ key: 'solved', v: st.solved }, { key: 'other', v: st.wontfix + st.design }, { key: 'open', v: st.open }], total: st.total, valueNode: <><b>{pct}%</b> · {st.solved}/{st.total}</> }; });
@@ -68,6 +74,7 @@ function QueueCharts({ board, allApps }: { board: Board; allApps: boolean }) {
   return (
     <section className="charts" aria-label="Charts">
       <StackedChart id="byflow" title={allApps ? 'Open findings by app' : 'Open findings by flow'} sub="active reviews, by severity" series={SEV_SERIES} rows={foldRows(byFlow, 8)} rowName={allApps ? 'App' : 'Flow'} empty="No open findings in active reviews." />
+      <StackedChart id="byteam" title="Open findings by team" sub="active reviews, by severity" series={SEV_SERIES} rows={foldRows(byTeam, 9)} rowName="Team" empty="No open findings in active reviews." />
       <StackedChart id="progress" title="Progress per review" sub="share of findings solved" series={PROGRESS_SERIES} rows={progRows} rowName="Review" meter empty="No findings delivered yet." />
       <StackedChart id="turnaround" title="Turnaround" sub="days from request to findings" series={[{ key: 'd', label: 'Days', color: 'var(--accent)' }]} rows={turn} rowName="Review" empty="No delivered reviews yet." />
     </section>

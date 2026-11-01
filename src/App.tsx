@@ -11,7 +11,7 @@ import { ReviewPage } from './components/ReviewPage';
 import { RequestForm } from './components/RequestForm';
 import { FindingForm } from './components/FindingForm';
 import { Lightbox } from './components/Lightbox';
-import { MyIssues } from './components/MyIssues';
+import { TeamInbox } from './components/TeamInbox';
 import { PeoplePanel } from './components/PeoplePanel';
 import { InvitePanel } from './components/InvitePanel';
 import { ReviewLinkView } from './components/ReviewLinkView';
@@ -46,7 +46,7 @@ export function App() {
 
   const openReview = useMemo(() => (hash && hash !== 'queue' ? board.reviews.get(hash) ?? null : null), [hash, board.reviews]);
   const missing = hash && hash !== 'queue' && board.loaded && !openReview ? hash : null;
-  // A review link opened by someone whose board does not carry that review (viewer, engineer, product owner of another
+  // A review link opened by someone whose board does not carry that review (pending, collaborator, product owner of another
   // product) is served read-only through review_by_link. UX and admins see every review, so for them a miss is a miss.
   const linkId = missing && !board.isUx ? missing : null;
   const closePanel = useCallback(() => setPanel(null), []);
@@ -92,7 +92,7 @@ export function App() {
       ) : !board.isUx && !board.isPo ? (
         <div className="wrap">
           {board.error && <div className="note-bar" style={{ marginBottom: 12 }}>The board could not load: {board.error}. Reload the page.</div>}
-          <MyIssues board={board} meId={meId} onOpenImage={(src, cap) => setLightbox({ src, cap })} />
+          <TeamInbox board={board} meId={meId} onOpenImage={(src, cap) => setLightbox({ src, cap })} />
         </div>
       ) : (
         <div className="wrap">

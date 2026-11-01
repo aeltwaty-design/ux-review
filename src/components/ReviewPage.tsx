@@ -15,6 +15,7 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
   const toast = useToast();
   const [tab, setTab] = useState<Tab>('open');
   const [sevF, setSevF] = useState<Set<number>>(new Set());
+  const [teamF, setTeamF] = useState<string | null>(null); // team id, '' = no team, null = all
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'flow' | 'sev'>('flow');
   const [confirmWithdraw, setConfirmWithdraw] = useState(false);
@@ -25,6 +26,7 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
   const q = query.trim().toLowerCase();
   let list = tabs[tab];
   if (sevF.size) list = list.filter((f) => sevF.has(f.sev));
+  if (teamF !== null) list = list.filter((f) => (f.team_id ?? '') === teamF);
   if (q) list = list.filter((f) => [f.code, f.screen, f.description, f.type, f.flow, f.note].join(' ').toLowerCase().includes(q));
   list = [...list].sort((a, b) => (sort === 'sev' ? (b.sev - a.sev) || (a.sort_order - b.sort_order) : (a.sort_order - b.sort_order) || a.created_at.localeCompare(b.created_at)));
 
@@ -56,6 +58,8 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
   for (const f of all) { if (f.state !== 'open') continue; const k = f.screen || 'Unspecified'; (byScreen[k] ??= {})[String(f.sev)] = (byScreen[k][String(f.sev)] || 0) + 1; }
   const prog: Row[] = st.total ? [{ label: 'All findings', parts: [{ key: 'solved', v: st.solved }, { key: 'other', v: st.wontfix + st.design }, { key: 'open', v: st.open }], total: st.total, valueNode: <><b>{Math.round((100 * st.solved) / st.total)}%</b> · {st.solved}/{st.total}</> }] : [];
 
+  // Teams present in this review's findings (by open count), for the filter chips.
+  const teamsHere = (() => { const c = new Map<string, number>(); all.forEach((f) => { const k = f.team_id ?? ''; c.set(k, (c.get(k) || 0) + (f.state === 'open' ? 1 : 0)); }); return [...c].sort((a, b) => b[1] - a[1]); })();
   const link = (u: string) => <a href={u} target="_blank" rel="noopener noreferrer">{u.replace(/^https?:\/\//, '').slice(0, 60)}{u.length > 68 ? '…' : ''}</a>;
   const dd = (label: string, v: React.ReactNode, wide = false) => (v ? <div className={wide ? 'wide' : undefined}><dt>{label}</dt><dd>{v}</dd></div> : null);
   const ux = board.isUx;
@@ -128,17 +132,24 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
         <div className="toolbar">
           <div className="chips">{(['open', 'solved', 'other', 'all'] as Tab[]).map((k) => <button key={k} type="button" className="fchip" aria-pressed={tab === k} onClick={() => setTab(k)}>{{ open: 'Open', solved: 'Solved', other: "Won't fix / design", all: 'All' }[k]}<span className="n">{tabs[k].length}</span></button>)}</div>
           <div className="chips">{[3, 2, 1].map((s) => <button key={s} type="button" className="fchip" aria-pressed={sevF.has(s)} onClick={() => setSevF((prev) => { const n = new Set(prev); if (n.has(s)) n.delete(s); else n.add(s); return n; })}>{SEV[s as 1 | 2 | 3]}</button>)}</div>
+          {teamsHere.length > 0 && <div className="chips" role="group" aria-label="Team">{teamsHere.map(([id, n]) => <button key={id || 'none'} type="button" className="fchip" aria-pressed={teamF === id} onClick={() => setTeamF(teamF === id ? null : id)}>{id ? board.teamName(id) : 'No team'}<span className="n">{n}</span></button>)}</div>}
           <input className="search" type="search" id="f-search" placeholder="Search code, screen, text" value={query} onChange={(e) => setQuery(e.target.value)} dir="auto" />
           <select className="ctl" id="f-sort" value={sort} onChange={(e) => setSort(e.target.value as 'flow' | 'sev')}><option value="flow">Order: flow</option><option value="sev">Order: severity</option></select>
           {canEdit && <button type="button" className="btn" onClick={() => onAddFinding(r.id)}>Add finding</button>}
+          {canAssign && all.some((f) => f.state === 'open' && !f.team_id) && (
+            <select className="ctl" id="team-all" value="" aria-label="Route all open findings without a team" onChange={async (e) => { const id = e.target.value; if (!id) return; const ids = all.filter((f) => f.state === 'open' && !f.team_id).map((f) => f.id); const res = await board.setTeam(ids, id); toast(res.ok ? `Routed ${ids.length} findings to ${board.teamName(id)}.` : 'Could not route: ' + res.error); }}>
+              <option value="">Route all open without a team to…</option>
+              {board.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          )}
           {canAssign && all.some((f) => f.state === 'open' && !f.assignee) && (
-            <select className="ctl" id="assign-all" value="" aria-label="Assign all open, unassigned findings" onChange={async (e) => { const id = e.target.value; if (!id) return; const ids = all.filter((f) => f.state === 'open' && !f.assignee).map((f) => f.id); const res = await board.assign(ids, id); toast(res.ok ? `Assigned ${ids.length} findings.` : 'Could not assign: ' + res.error); }}>
-              <option value="">Assign all open, unassigned to…</option>
-              {board.assignable.map((p) => <option key={p.id} value={p.id}>{p.name || p.email}</option>)}
+            <select className="ctl" id="assign-all" value="" aria-label="Assign all open, unassigned findings" onChange={async (e) => { const id = e.target.value; if (!id) return; const p = board.profiles.get(id); const ids = all.filter((f) => f.state === 'open' && !f.assignee && (teamF === null ? true : (f.team_id ?? '') === teamF)).map((f) => f.id); const res = await board.assign(ids, id); if (res.ok && p?.team_id) await board.setTeam(ids.filter((fid) => !board.findings.get(fid)?.team_id), p.team_id); toast(res.ok ? `Assigned ${ids.length} findings.` : 'Could not assign: ' + res.error); }}>
+              <option value="">{teamF ? `Assign open, unassigned ${board.teamName(teamF)} findings to…` : 'Assign all open, unassigned to…'}</option>
+              {board.assignableFor(teamF || null).map((p) => <option key={p.id} value={p.id}>{p.name || p.email}{p.team_id ? ' · ' + board.teamName(p.team_id) : ''}</option>)}
             </select>
           )}
         </div>
-        <p className="hint" style={{ margin: '-6px 0 10px' }}>{canAssign ? 'Engineers see only the findings assigned to them. Screenshots: mask names, phone numbers and emails before uploading.' : 'Screenshots: mask names, phone numbers and emails before uploading.'}</p>
+        <p className="hint" style={{ margin: '-6px 0 10px' }}>{canAssign ? 'Route each finding to the team that owns it; collaborators see every finding of their team and take or get assigned the ones to fix. Screenshots: mask names, phone numbers and emails before uploading.' : 'Screenshots: mask names, phone numbers and emails before uploading.'}</p>
         {all.length === 0 ? (
           <div className="empty"><h3>No findings yet</h3>{r.status === 'requested' || r.status === 'in_progress' ? 'The reviewer adds findings here when the review is done.' : 'Nothing was recorded for this review.'}</div>
         ) : list.length === 0 ? (

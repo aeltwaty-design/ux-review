@@ -9,7 +9,8 @@ import { useToast } from './Toast';
 export function InvitePanel({ board, onClose }: { board: Board; onClose: () => void }) {
   const toast = useToast();
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<Role>('engineer');
+  const [role, setRole] = useState<Role>('collaborator');
+  const [team, setTeam] = useState('');
   const [apps, setApps] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
@@ -20,7 +21,7 @@ export function InvitePanel({ board, onClose }: { board: Board; onClose: () => v
     if (!v.endsWith('@' + ALLOWED_DOMAIN)) return toast(`Only ${ALLOWED_DOMAIN} addresses.`);
     if (role === 'product_owner' && !apps.length) return toast('Pick at least one product for a Product Owner.');
     setBusy(true);
-    const res = await board.invite(v, role, role === 'product_owner' ? apps : []);
+    const res = await board.invite(v, role, role === 'product_owner' ? apps : [], team || null);
     setBusy(false);
     if (!res.ok) return toast(res.error === 'already invited' ? 'That address is already invited or a member.' : 'Could not invite: ' + res.error);
     setDone(v); setEmail(''); setApps([]);
@@ -30,10 +31,11 @@ export function InvitePanel({ board, onClose }: { board: Board; onClose: () => v
     <Sheet title="Invite a colleague" onClose={onClose}>
       <form onSubmit={submit}>
         <p className="hint" style={{ margin: 0 }}>Any {ALLOWED_DOMAIN} account can sign in. Your invitation records who should get which role; an admin approves it and the account is active from then on. Until then the person sees "Waiting admin approval" (review links still open for them).</p>
-        {done && <div className="note-bar" style={{ marginTop: 10 }}>Invitation for <b>{done}</b> recorded as <b>{ROLES[role]}</b>, waiting for an admin. They can sign in with Google now.</div>}
+        {done && <div className="note-bar" style={{ marginTop: 10 }}>Invitation for <b>{done}</b> recorded as <b>{ROLES[role]}</b>{team && <> in <b>{board.teamName(team)}</b></>}, waiting for an admin. They can sign in with Google now.</div>}
         <div className="fld" style={{ marginTop: 10 }}><div className="opts" style={{ gap: 8 }}>
           <input type="email" id="inv-email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={'name@' + ALLOWED_DOMAIN} style={{ flex: '1 1 200px', padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 8, background: 'var(--bg)' }} dir="ltr" autoFocus />
           <select className="ctl" value={role} onChange={(e) => setRole(e.target.value as Role)} aria-label="Suggested role">{GRANTABLE_ROLES.map((r) => <option key={r} value={r}>{ROLES[r]}</option>)}</select>
+          <select className="ctl" value={team} onChange={(e) => setTeam(e.target.value)} aria-label="Team"><option value="">Team…</option>{board.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
           <button type="submit" className="btn primary" disabled={busy || !email.trim()}>Invite</button>
         </div>
         {role === 'product_owner' && (

@@ -6,7 +6,7 @@ export function TopBar({ user, profile, canRequest, showQueue, onNew, onPeople, 
   const avatar = profile?.avatar_url || user?.user_metadata?.avatar_url || '';
   return (
     <header className="top"><div className="top-in">
-      <div className="brand"><span className="eyebrow">Engineering ↔ UX · all apps</span><h1>UX Reviews</h1></div>
+      <div className="brand"><span className="eyebrow">UX ↔ teams · all apps</span><h1>UX Reviews</h1></div>
       <nav>
         {user && showQueue && <a className="btn" href="#queue">Queue</a>}
         {user && onPeople && <button className="btn" type="button" onClick={onPeople}>People</button>}

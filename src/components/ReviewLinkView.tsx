@@ -6,7 +6,7 @@ import { FSTATE, SEV, STATUS, type Finding, type Review, type ShotRef } from '..
 import { Md } from './Md';
 import { CopyLink } from './CopyLink';
 
-type Payload = { review: Review; findings: Finding[]; people: Record<string, string>; app: string };
+type Payload = { review: Review; findings: Finding[]; people: Record<string, string>; app: string; teams?: Record<string, string> };
 
 /** Read-only view of one review, for anyone at WalaPlus who has its link. Loaded through review_by_link, never the tables. */
 export function ReviewLinkView({ reviewId, meId, hasBoard, onOpenImage }: { reviewId: string; meId: string | null; hasBoard: boolean; onOpenImage: (src: string, cap: string) => void }) {
@@ -26,7 +26,7 @@ export function ReviewLinkView({ reviewId, meId, hasBoard, onOpenImage }: { revi
   if (state.status === 'loading') return <div className="empty">Loading the review…</div>;
   if (state.status === 'missing') return <div className="empty"><h3>No such review</h3>The link may be wrong, or the request was withdrawn.</div>;
   if (state.status === 'error') return <div className="empty"><h3>Could not open this review</h3>{state.message}</div>;
-  const { review: r, findings, people, app } = state.data;
+  const { review: r, findings, people, app, teams = {} } = state.data;
   const who = (id: string | null | undefined, label?: string | null) => (id && people[id]) || label || '—';
   const dd = (label: string, v: React.ReactNode, wide = false) => (v ? <div className={wide ? 'wide' : undefined}><dt>{label}</dt><dd>{v}</dd></div> : null);
   const link = (u: string) => <a href={u} target="_blank" rel="noopener noreferrer">{u.replace(/^https?:\/\//, '').slice(0, 60)}{u.length > 68 ? '…' : ''}</a>;
@@ -58,16 +58,17 @@ export function ReviewLinkView({ reviewId, meId, hasBoard, onOpenImage }: { revi
       <section className="fsec">
         <h3>Findings <span className="hint">{open} open · {findings.length - open} solved or marked</span></h3>
         {findings.length === 0 ? <div className="empty"><h3>No findings yet</h3>The reviewer adds findings here when the review is done.</div> : (
-          <div className="list">{findings.map((f) => <ReadOnlyFinding key={f.id} f={f} who={who} onOpenImage={onOpenImage} />)}</div>
+          <div className="list">{findings.map((f) => <ReadOnlyFinding key={f.id} f={f} who={who} teams={teams} onOpenImage={onOpenImage} />)}</div>
         )}
       </section>
     </>
   );
 }
 
-function ReadOnlyFinding({ f, who, onOpenImage }: { f: Finding; who: (id: string | null | undefined, label?: string | null) => string; onOpenImage: (src: string, cap: string) => void }) {
+function ReadOnlyFinding({ f, who, teams, onOpenImage }: { f: Finding; who: (id: string | null | undefined, label?: string | null) => string; teams: Record<string, string>; onOpenImage: (src: string, cap: string) => void }) {
   const st = f.state || 'open';
   const meta = [
+    f.team_id ? 'Team: ' + (teams[f.team_id] || f.team_id) : '',
     f.assignee ? 'Assigned to ' + who(f.assignee) : '',
     st !== 'open' ? `${FSTATE[st]} by ${who(f.state_by, f.state_label)}${f.state_at ? ' · ' + fmtDate(f.state_at) : ''}` : '',
     f.note ? 'Note: ' + f.note : '',

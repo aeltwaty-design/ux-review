@@ -2,10 +2,17 @@ export type Status = 'requested' | 'in_progress' | 'delivered' | 'done';
 export type FState = 'open' | 'solved' | 'wontfix' | 'design';
 export type Sev = 1 | 2 | 3;
 
-export type Role = 'pending' | 'engineer' | 'product_owner' | 'ux' | 'admin';
-export const ROLES: Record<Role, string> = { pending: 'Waiting admin approval', engineer: 'Engineer', product_owner: 'Product Owner', ux: 'UX team', admin: 'Admin' };
+export type Role = 'pending' | 'collaborator' | 'product_owner' | 'ux' | 'admin';
+export const ROLES: Record<Role, string> = { pending: 'Waiting admin approval', collaborator: 'Collaborator', product_owner: 'Product Owner', ux: 'UX team', admin: 'Admin' };
 /** Roles an admin can grant; `pending` is the state before approval. */
-export const GRANTABLE_ROLES: Exclude<Role, 'pending'>[] = ['engineer', 'product_owner', 'ux', 'admin'];
+export const GRANTABLE_ROLES: Exclude<Role, 'pending'>[] = ['collaborator', 'product_owner', 'ux', 'admin'];
+
+/** A team that owns findings: Engineering, Data, Marketing, Marketplace, Customer support, Customer success, Business, Management, Design. */
+export interface Team {
+  id: string;
+  name: string;
+  sort_order: number;
+}
 
 export interface Profile {
   id: string;
@@ -14,6 +21,7 @@ export interface Profile {
   avatar_url: string | null;
   role: Role;
   active: boolean;
+  team_id: string | null;
 }
 
 export interface RoleAssignment {
@@ -21,6 +29,7 @@ export interface RoleAssignment {
   role: Role;
   apps: string[];
   created_at: string;
+  team_id: string | null;
   invited_by: string | null;
   approved: boolean;
   approved_by: string | null;
@@ -93,6 +102,7 @@ export interface Finding {
   note_label: string | null;
   note_at: string | null;
   images: ShotRef[];
+  team_id: string | null;
   assignee: string | null;
   assigned_by: string | null;
   assigned_at: string | null;

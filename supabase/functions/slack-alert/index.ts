@@ -10,7 +10,7 @@ type Review = {
   requested_by: string | null; requester_label: string | null; reviewer: string | null; reviewer_label: string | null;
   slack: Record<string, string> | null;
 };
-type Finding = { sev: number; state: string };
+type Finding = { sev: number; state: string; team_id: string | null };
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
@@ -53,11 +53,16 @@ Deno.serve(async (req) => {
     if (event === 'requested') {
       text = `:new: *UX review requested* — ${title}\nRequested by ${who(r.requested_by, r.requester_label)} · build: ${r.build}\nUX team: open the board to start the review → ${link}`;
     } else {
-      const { data: fs } = await sb.from('findings').select('sev, state').eq('review_id', r.id);
+      const { data: fs } = await sb.from('findings').select('sev, state, team_id').eq('review_id', r.id);
       const list = (fs ?? []) as Finding[];
       const n = (fn: (f: Finding) => boolean) => list.filter(fn).length;
       if (event === 'delivered') {
-        text = `:white_check_mark: *Findings delivered* — ${title}\n${list.length} findings: ${n(f => f.sev === 3)} major · ${n(f => f.sev === 2)} minor · ${n(f => f.sev === 1)} cosmetic · reviewer: ${who(r.reviewer, r.reviewer_label)}\nEngineer: tick each finding Solved on the board as you fix → ${link}`;
+        const { data: tms } = await sb.from('teams').select('id, name');
+        const tname = new Map(((tms ?? []) as { id: string; name: string }[]).map((t) => [t.id, t.name]));
+        const perTeam = new Map<string, number>();
+        list.forEach((f) => { const k = f.team_id ? (tname.get(f.team_id) ?? f.team_id) : 'not routed'; perTeam.set(k, (perTeam.get(k) ?? 0) + 1); });
+        const teams = [...perTeam].map(([k, v]) => `${k} ${v}`).join(' · ');
+        text = `:white_check_mark: *Findings delivered* — ${title}\n${list.length} findings: ${n(f => f.sev === 3)} major · ${n(f => f.sev === 2)} minor · ${n(f => f.sev === 1)} cosmetic · reviewer: ${who(r.reviewer, r.reviewer_label)}${teams ? `\nBy team: ${teams}` : ''}\nTeams: tick each finding Solved on the board as it is fixed → ${link}`;
       } else {
         text = `:tada: *Review closed* — ${title}\n${n(f => f.state === 'solved')} of ${list.length} solved · ${n(f => f.state === 'wontfix')} won't fix · ${n(f => f.state === 'design')} need a design decision\n${link}`;
       }
