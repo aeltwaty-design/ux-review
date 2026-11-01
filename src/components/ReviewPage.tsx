@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Board } from '../hooks/useBoard';
 import { fmtDate, nowIso, statsFor } from '../lib/format';
-import { PROGRESS_SERIES, SEV, SEV_SERIES, STATUS, type Finding, type Review } from '../lib/types';
+import { PROGRESS_SERIES, SEV, SEV_SERIES, STATUS, type Finding, type Review, type Status } from '../lib/types';
 import { FindingRow } from './FindingRow';
 import { Md } from './Md';
 import { StackedChart, foldRows, type Row } from './StackedChart';
@@ -35,6 +35,16 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
     toast(msg);
     if (alert) board.notify(r.id);
   };
+  // Any status can be chosen, forward or back; dates are kept when moving back to a stage already reached and cleared for stages undone.
+  const setStatus = (next: Status) => {
+    if (next === r.status) return;
+    const patch: Partial<Review> = { status: next };
+    if (next === 'requested') Object.assign(patch, { started_at: null, delivered_at: null, closed_at: null });
+    if (next === 'in_progress') Object.assign(patch, { started_at: r.started_at ?? t, delivered_at: null, closed_at: null, ...(r.reviewer || r.reviewer_label ? {} : { reviewer: meId, reviewer_label: null }) });
+    if (next === 'delivered') Object.assign(patch, { started_at: r.started_at ?? t, delivered_at: r.delivered_at ?? t, closed_at: null });
+    if (next === 'done') Object.assign(patch, { started_at: r.started_at ?? t, delivered_at: r.delivered_at ?? t, closed_at: r.closed_at ?? t });
+    act(patch, 'Status set to ' + STATUS[next] + '.', next === 'delivered' || next === 'done');
+  };
   const withdraw = async () => {
     setConfirmWithdraw(false);
     const res = await board.deleteReview(r.id);
@@ -58,7 +68,13 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
       <div className="rhead">
         <div>
           <h2>{r.flow}<span className="chip plat">{board.appName(r.app_id)}</span><span className="chip plat">{r.platform}</span></h2>
-          <div className="rsub"><span className={'pill st-' + r.status}>{STATUS[r.status]}</span><span>Requested by {board.nameOf(r.requested_by, r.requester_label)} on {fmtDate(r.created_at)}</span>
+          <div className="rsub">
+            {board.isUx ? (
+              <select className={'pill st-' + r.status} value={r.status} aria-label="Review status" title="Move the review to any stage" onChange={(e) => setStatus(e.target.value as Status)}>
+                {(Object.keys(STATUS) as Status[]).map((k) => <option key={k} value={k}>{STATUS[k]}</option>)}
+              </select>
+            ) : <span className={'pill st-' + r.status}>{STATUS[r.status]}</span>}
+            <span>Requested by {board.nameOf(r.requested_by, r.requester_label)} on {fmtDate(r.created_at)}</span>
             {r.source === 'audit' && <span>· imported from the Android app audit</span>}</div>
         </div>
         <div className="actions">
