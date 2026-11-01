@@ -40,7 +40,7 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
     if (next === r.status) return;
     const patch: Partial<Review> = { status: next };
     if (next === 'requested') Object.assign(patch, { started_at: null, delivered_at: null, closed_at: null });
-    if (next === 'in_progress') Object.assign(patch, { started_at: r.started_at ?? t, delivered_at: null, closed_at: null, ...(r.reviewer || r.reviewer_label ? {} : { reviewer: meId, reviewer_label: null }) });
+    if (next === 'in_progress') Object.assign(patch, { started_at: r.started_at ?? t, delivered_at: null, closed_at: null, ...(r.reviewer || r.reviewer_label || !board.isUx ? {} : { reviewer: meId, reviewer_label: null }) });
     if (next === 'delivered') Object.assign(patch, { started_at: r.started_at ?? t, delivered_at: r.delivered_at ?? t, closed_at: null });
     if (next === 'done') Object.assign(patch, { started_at: r.started_at ?? t, delivered_at: r.delivered_at ?? t, closed_at: r.closed_at ?? t });
     act(patch, 'Status set to ' + STATUS[next] + '.', next === 'delivered' || next === 'done');
@@ -60,6 +60,11 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
   const dd = (label: string, v: React.ReactNode, wide = false) => (v ? <div className={wide ? 'wide' : undefined}><dt>{label}</dt><dd>{v}</dd></div> : null);
   const ux = board.isUx;
   const canAssign = board.canAssignIn(r.id);
+  // Who may move the status where: admins anywhere; the UX team and product owners (of this product) up to Delivered;
+  // closing and reopening are the admin's. Enforced again by the guard_review_update trigger.
+  const canMove = ux || (board.isPo && board.myApps.includes(r.app_id));
+  const stages = (Object.keys(STATUS) as Status[]).filter((k) => k !== 'done' || board.isAdmin);
+  const closed = r.status === 'done' && !board.isAdmin;
 
   return (
     <>
@@ -74,13 +79,14 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
           <CopyLink id={r.id} />
           {confirmWithdraw ? (
             <span className="confirm">Withdraw this request? <button type="button" className="btn sm danger" onClick={withdraw}>Withdraw</button><button type="button" className="btn sm" onClick={() => setConfirmWithdraw(false)}>Keep</button></span>
-          ) : ux ? (
+          ) : canMove ? (
             <>
-              <select className="btn primary status-cta" value={r.status} aria-label="Review status" title="Move the review to any stage, forward or back" onChange={(e) => setStatus(e.target.value as Status)}>
-                {(Object.keys(STATUS) as Status[]).map((k) => <option key={k} value={k}>{STATUS[k]}</option>)}
+              <select className="btn primary status-cta" value={r.status} disabled={closed} aria-label="Review status" title={closed ? 'Closed. Only an admin can reopen a review.' : board.isAdmin ? 'Move the review to any stage, forward or back' : 'Move the review up to Delivered; an admin closes it'} onChange={(e) => setStatus(e.target.value as Status)}>
+                {(closed ? (Object.keys(STATUS) as Status[]) : stages).map((k) => <option key={k} value={k}>{STATUS[k]}</option>)}
               </select>
-              {r.status !== 'done' && <button type="button" className="btn" onClick={() => onEditRequest(r)}>Edit request</button>}
-              {r.status === 'requested' && <button type="button" className="btn" onClick={() => setConfirmWithdraw(true)}>Withdraw</button>}
+              {closed && <span className="hint">Only an admin can reopen.</span>}
+              {ux && r.status !== 'done' && <button type="button" className="btn" onClick={() => onEditRequest(r)}>Edit request</button>}
+              {ux && r.status === 'requested' && <button type="button" className="btn" onClick={() => setConfirmWithdraw(true)}>Withdraw</button>}
             </>
           ) : r.status === 'requested' ? <span className="hint">Waiting for the UX team to start the review.</span>
             : r.status === 'in_progress' ? <span className="hint">The UX team is reviewing.</span>
