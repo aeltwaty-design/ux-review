@@ -1,5 +1,6 @@
--- Only an admin edits a request (its fields and reviewer), withdraws (deletes) it, or closes/reopens it.
--- The UX team and product owners change the status (up to Delivered) and nothing else on the review row.
+-- Who edits a review row. Admins: everything. The assigned reviewer (a UX team member whose id is reviews.reviewer):
+-- everything on that review except closing/reopening and withdrawing. Other UX members and product owners: the status
+-- (up to Delivered) and nothing else. Withdrawing (delete) is admin-only.
 
 drop policy if exists "ux delete reviews" on public.reviews;
 drop policy if exists "admins delete reviews" on public.reviews;
@@ -13,15 +14,16 @@ begin
   if (new.status = 'done') is distinct from (old.status = 'done') then
     raise exception 'Only an admin can close or reopen a review';
   end if;
+  if public.is_ux() and old.reviewer = auth.uid() then return new; end if; -- the assigned reviewer
   if new.reviewer is distinct from old.reviewer or new.reviewer_label is distinct from old.reviewer_label then
-    raise exception 'Only an admin can change the reviewer';
+    raise exception 'Only an admin or the assigned reviewer can change the reviewer';
   end if;
   if new.app_id <> old.app_id or new.flow <> old.flow or new.platform <> old.platform or new.build <> old.build
      or new.screens <> old.screens or new.figma <> old.figma or new.languages <> old.languages or new.reach <> old.reach
      or new.story <> old.story or new.requested_by is distinct from old.requested_by
      or new.requester_label is distinct from old.requester_label or new.page is distinct from old.page
      or new.source <> old.source or new.created_at <> old.created_at then
-    raise exception 'Only an admin can edit a request';
+    raise exception 'Only an admin or the assigned reviewer can edit a request';
   end if;
   return new;
 end $$;

@@ -62,6 +62,8 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
   const canAssign = board.canAssignIn(r.id);
   // Who may move the status where: admins anywhere; the UX team and product owners (of this product) up to Delivered;
   // closing and reopening are the admin's. Enforced again by the guard_review_update trigger.
+  const mine = ux && !!meId && r.reviewer === meId; // the assigned reviewer has admin controls on this review, except close/withdraw
+  const canEdit = board.isAdmin || mine;
   const canMove = ux || (board.isPo && board.myApps.includes(r.app_id));
   const stages = (Object.keys(STATUS) as Status[]).filter((k) => k !== 'done' || board.isAdmin);
   const closed = r.status === 'done' && !board.isAdmin;
@@ -85,7 +87,7 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
                 {(closed ? (Object.keys(STATUS) as Status[]) : stages).map((k) => <option key={k} value={k}>{STATUS[k]}</option>)}
               </select>
               {closed && <span className="hint">Only an admin can reopen.</span>}
-              {board.isAdmin && r.status !== 'done' && <button type="button" className="btn" onClick={() => onEditRequest(r)}>Edit request</button>}
+              {canEdit && r.status !== 'done' && <button type="button" className="btn" onClick={() => onEditRequest(r)}>Edit request</button>}
               {board.isAdmin && r.status === 'requested' && <button type="button" className="btn" onClick={() => setConfirmWithdraw(true)}>Withdraw</button>}
             </>
           ) : r.status === 'requested' ? <span className="hint">Waiting for the UX team to start the review.</span>
@@ -95,7 +97,7 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
         </div>
       </div>
       <dl className="meta">
-        {board.isAdmin ? (
+        {canEdit ? (
           <div><dt><label htmlFor={'reviewer-' + r.id}>Reviewer</label></dt><dd>
             <select className="ctl" id={'reviewer-' + r.id} value={r.reviewer ?? ''} onChange={async (e) => { const id = e.target.value || null; const res = await board.updateReview(r.id, { reviewer: id, reviewer_label: id ? null : r.reviewer_label }); toast(res.ok ? (id ? 'Reviewer set to ' + board.nameOf(id, null) + '.' : 'Reviewer cleared.') : 'Could not save: ' + res.error); }}>
               <option value="">{r.reviewer_label || '— not assigned —'}</option>
