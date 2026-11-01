@@ -6,6 +6,7 @@ import { FindingRow } from './FindingRow';
 import { Md } from './Md';
 import { StackedChart, foldRows, type Row } from './StackedChart';
 import { useToast } from './Toast';
+import { CopyLink } from './CopyLink';
 
 type Tab = 'open' | 'solved' | 'other' | 'all';
 
@@ -63,6 +64,7 @@ export function ReviewPage({ review: r, board, meId, onEditRequest, onAddFinding
             {r.source === 'audit' && <span>· imported from the Android app audit</span>}</div>
         </div>
         <div className="actions">
+          <CopyLink id={r.id} />
           {confirmWithdraw ? (
             <span className="confirm">Withdraw this request? <button type="button" className="btn sm danger" onClick={withdraw}>Withdraw</button><button type="button" className="btn sm" onClick={() => setConfirmWithdraw(false)}>Keep</button></span>
           ) : r.status === 'requested' ? (

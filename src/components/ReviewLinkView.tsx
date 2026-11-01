@@ -4,6 +4,7 @@ import { fmtDate } from '../lib/format';
 import { supabase } from '../lib/supabase';
 import { FSTATE, SEV, STATUS, type Finding, type Review, type ShotRef } from '../lib/types';
 import { Md } from './Md';
+import { CopyLink } from './CopyLink';
 
 type Payload = { review: Review; findings: Finding[]; people: Record<string, string>; app: string };
 
@@ -41,6 +42,7 @@ export function ReviewLinkView({ reviewId, meId, hasBoard, onOpenImage }: { revi
           <h2>{r.flow}<span className="chip plat">{app}</span><span className="chip plat">{r.platform}</span></h2>
           <div className="rsub"><span className={'pill st-' + r.status}>{STATUS[r.status]}</span><span>Requested by {who(r.requested_by, r.requester_label)} on {fmtDate(r.created_at)}</span><span className="chip type">read-only</span></div>
         </div>
+        <div className="actions"><CopyLink id={r.id} /></div>
       </div>
       <dl className="meta">
         {dd('Reviewer', <>{who(r.reviewer, r.reviewer_label)}{r.started_at && <> · started {fmtDate(r.started_at)}</>}</>)}

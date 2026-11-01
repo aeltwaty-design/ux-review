@@ -3,6 +3,7 @@ import type { Board } from '../hooks/useBoard';
 import { fmtDate, sortReviews } from '../lib/format';
 import { STATUS, type Finding } from '../lib/types';
 import { FindingRow } from './FindingRow';
+import { CopyLink } from './CopyLink';
 
 type Tab = 'open' | 'done' | 'all';
 
@@ -36,6 +37,7 @@ export function MyIssues({ board, meId, onOpenImage }: { board: Board; meId: str
                 <h3 style={{ fontSize: 17, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>{r.flow}<span className="chip plat">{board.appName(r.app_id)}</span><span className="chip plat">{r.platform}</span></h3>
                 <div className="rsub"><span className={'pill st-' + r.status}>{STATUS[r.status]}</span><span>{list.length} of your {tab === 'all' ? 'issues' : tab === 'open' ? 'open issues' : 'done issues'}{r.delivered_at && <> · delivered {fmtDate(r.delivered_at)}</>}{(r.reviewer || r.reviewer_label) && <> · reviewer: {board.nameOf(r.reviewer, r.reviewer_label)}</>}</span></div>
               </div>
+              <div className="actions"><CopyLink id={r.id} small /></div>
             </div>
             <div className="list">{list.map((f) => <FindingRow key={f.id} f={f} board={board} meId={meId} onEdit={() => undefined} onOpenImage={onOpenImage} />)}</div>
           </section>
