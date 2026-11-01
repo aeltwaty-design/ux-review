@@ -2,8 +2,10 @@ export type Status = 'requested' | 'in_progress' | 'delivered' | 'done';
 export type FState = 'open' | 'solved' | 'wontfix' | 'design';
 export type Sev = 1 | 2 | 3;
 
-export type Role = 'viewer' | 'engineer' | 'product_owner' | 'ux' | 'admin';
-export const ROLES: Record<Role, string> = { viewer: 'Viewer (links only)', engineer: 'Engineer', product_owner: 'Product Owner', ux: 'UX team', admin: 'Admin' };
+export type Role = 'pending' | 'engineer' | 'product_owner' | 'ux' | 'admin';
+export const ROLES: Record<Role, string> = { pending: 'Waiting admin approval', engineer: 'Engineer', product_owner: 'Product Owner', ux: 'UX team', admin: 'Admin' };
+/** Roles an admin can grant; `pending` is the state before approval. */
+export const GRANTABLE_ROLES: Exclude<Role, 'pending'>[] = ['engineer', 'product_owner', 'ux', 'admin'];
 
 export interface Profile {
   id: string;
@@ -19,6 +21,10 @@ export interface RoleAssignment {
   role: Role;
   apps: string[];
   created_at: string;
+  invited_by: string | null;
+  approved: boolean;
+  approved_by: string | null;
+  approved_at: string | null;
 }
 
 export interface ProfileApp {

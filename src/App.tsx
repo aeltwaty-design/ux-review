@@ -13,10 +13,11 @@ import { FindingForm } from './components/FindingForm';
 import { Lightbox } from './components/Lightbox';
 import { MyIssues } from './components/MyIssues';
 import { PeoplePanel } from './components/PeoplePanel';
+import { InvitePanel } from './components/InvitePanel';
 import { ReviewLinkView } from './components/ReviewLinkView';
 import { ToastContext, useToastState } from './components/Toast';
 
-export type Panel = { kind: 'request'; review?: Review } | { kind: 'finding'; reviewId: string; finding?: Finding } | { kind: 'people' } | null;
+export type Panel = { kind: 'request'; review?: Review } | { kind: 'finding'; reviewId: string; finding?: Finding } | { kind: 'people' } | { kind: 'invite' } | null;
 
 function useHash() {
   const [hash, setHash] = useState(() => location.hash.replace(/^#/, ''));
@@ -69,7 +70,7 @@ export function App() {
 
   return (
     <ToastContext.Provider value={toastState.toast}>
-      <TopBar user={auth.user} profile={meId ? board.profiles.get(meId) ?? null : null} canRequest={board.isUx} showQueue={board.isUx || board.isPo} onNew={() => setPanel({ kind: 'request' })} onPeople={board.isAdmin ? () => setPanel({ kind: 'people' }) : undefined} onSignOut={auth.signOut} />
+      <TopBar user={auth.user} profile={meId ? board.profiles.get(meId) ?? null : null} canRequest={board.isUx} showQueue={board.isUx || board.isPo} onNew={() => setPanel({ kind: 'request' })} onPeople={board.isAdmin ? () => setPanel({ kind: 'people' }) : undefined} onInvite={!board.isAdmin && !board.isPending && !board.accessDenied && board.loaded ? () => setPanel({ kind: 'invite' }) : undefined} onSignOut={auth.signOut} />
       {!auth.ready ? null : !auth.session ? (
         <SignIn onSignIn={auth.signIn} error={auth.authError} />
       ) : board.accessDenied ? (
@@ -80,12 +81,12 @@ export function App() {
         </div></div>
       ) : linkId ? (
         <div className="wrap">
-          <ReviewLinkView reviewId={linkId} meId={meId} hasBoard={!board.isViewer} onOpenImage={(src, cap) => setLightbox({ src, cap })} />
+          <ReviewLinkView reviewId={linkId} meId={meId} hasBoard={!board.isPending} onOpenImage={(src, cap) => setLightbox({ src, cap })} />
         </div>
-      ) : board.isViewer ? (
+      ) : board.isPending ? (
         <div className="signin"><div className="signin-card">
-          <h2>Signed in as a viewer</h2>
-          <p>Open a review link that was shared with you to read that review. The board itself is for invited members: ask an admin to invite your walaplus.com address if you need it.</p>
+          <h2>Waiting for admin approval</h2>
+          <p>Your account is signed in but not approved yet. An admin will approve it and set your role; this page updates by itself when that happens. Review links shared with you already open.</p>
           <button className="btn" type="button" onClick={auth.signOut}>Sign out</button>
         </div></div>
       ) : !board.isUx && !board.isPo ? (
@@ -116,6 +117,7 @@ export function App() {
       {panel?.kind === 'request' && <RequestForm review={panel.review} board={board} meId={meId} defaultApp={appFilter} onClose={closePanel} />}
       {panel?.kind === 'finding' && <FindingForm reviewId={panel.reviewId} finding={panel.finding} board={board} meId={meId} onClose={closePanel} />}
       {panel?.kind === 'people' && board.isAdmin && <PeoplePanel board={board} meId={meId} onClose={closePanel} />}
+      {panel?.kind === 'invite' && <InvitePanel board={board} onClose={closePanel} />}
       {lightbox && <Lightbox src={lightbox.src} cap={lightbox.cap} onClose={() => setLightbox(null)} />}
       {toastState.message && <div className="toast" role="status">{toastState.message}</div>}
     </ToastContext.Provider>
